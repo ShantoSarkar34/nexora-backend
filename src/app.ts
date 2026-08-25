@@ -6,6 +6,7 @@ import notFound from "./middleware/notFound";
 import errorHandler from "./middleware/errorHandler";
 import catchAsync from "./utils/catchAsync";
 import sendResponse from "./utils/sendResponse";
+import prisma from "./config/prismaClient";
 
 const app: Application = express();
 
@@ -13,7 +14,7 @@ const app: Application = express();
 app.use(
   cors({
     origin: env.FRONTEND_URL,
-    credentials: true, 
+    credentials: true,
   })
 );
 app.use(cookieParser());
@@ -24,6 +25,7 @@ app.use(express.urlencoded({ extended: true }));
 app.get(
   "/api/v1/health",
   catchAsync(async (req: Request, res: Response) => {
+    await prisma.$queryRaw`SELECT 1`;
     sendResponse(res, 200, {
       success: true,
       message: "Nexora API is healthy",
@@ -31,6 +33,7 @@ app.get(
         uptime: process.uptime(),
         timestamp: new Date().toISOString(),
         environment: env.NODE_ENV,
+        database: "connected",
       },
     });
   })
