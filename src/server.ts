@@ -1,9 +1,9 @@
 import app from "./app";
+import { env } from "./config/env";
 
-// PORT is hardcoded with a fallback for now.
-// Proper env variable validation (Zod) is set up in the next task.
-const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`Nexora API server running on port ${PORT}`);
+app.listen(env.PORT, () => {
+  console.log(
+    `🚀 Nexora API server running on port ${env.PORT} [${env.NODE_ENV}]`
+  );
 });
