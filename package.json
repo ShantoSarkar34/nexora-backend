@@ -1,0 +1,30 @@
+{
+  "name": "nexora-backend",
+  "version": "1.0.0",
+  "description": "Nexora - AI-Powered Freelance Marketplace Backend API",
+  "main": "dist/server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsup --watch --onSuccess \"node dist/server.js\"",
+    "build": "tsup",
+    "start": "node dist/server.js",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "nexora",
+    "backend",
+    "express",
+    "typescript"
+  ],
+  "author": "Shanto",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.3.0",
+    "tsup": "^8.5.1",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
