@@ -1,11 +1,11 @@
 {
   "compilerOptions": {
-    "rootDir": "./src",
     "outDir": "./dist",
     "target": "esnext",
     "module": "esnext",
     "moduleResolution": "bundler",
     "types": ["node"],
+    "typeRoots": ["./node_modules/@types"],
     "strict": true,
     "sourceMap": true,
     "declaration": true,
@@ -13,6 +13,6 @@
     "skipLibCheck": true,
     "isolatedModules": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "api/**/*"],
   "exclude": ["node_modules", "dist", "prisma/generated"]
 }
