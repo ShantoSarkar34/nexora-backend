@@ -1,0 +1,16 @@
+model ClientProfile {
+    id     String @id @default(uuid())
+    userId String @unique
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    companyName String?
+    industry    String?
+    companySize CompanySize?
+    website     String?
+    about       String?      @db.Text
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("client_profiles")
+}

@@ -1,0 +1,63 @@
+model FreelancerProfile {
+    id     String @id @default(uuid())
+    userId String @unique
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    title           String?
+    bio             String?          @db.Text
+    hourlyRate      Decimal?         @db.Decimal(10, 2)
+    experienceLevel ExperienceLevel?
+    availability    Availability     @default(AVAILABLE)
+
+    skills      FreelancerSkill[]
+    experiences Experience[]
+    portfolios  Portfolio[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("freelancer_profiles")
+}
+
+model FreelancerSkill {
+    id                  String            @id @default(uuid())
+    freelancerProfileId String
+    freelancerProfile   FreelancerProfile @relation(fields: [freelancerProfileId], references: [id], onDelete: Cascade)
+    skillId             String
+    skill               Skill             @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+    @@unique([freelancerProfileId, skillId])
+    @@map("freelancer_skills")
+}
+
+model Experience {
+    id                  String            @id @default(uuid())
+    freelancerProfileId String
+    freelancerProfile   FreelancerProfile @relation(fields: [freelancerProfileId], references: [id], onDelete: Cascade)
+
+    title       String
+    company     String
+    startDate   DateTime
+    endDate     DateTime?
+    isCurrent   Boolean   @default(false)
+    description String?   @db.Text
+
+    createdAt DateTime @default(now())
+
+    @@map("experiences")
+}
+
+model Portfolio {
+    id                  String            @id @default(uuid())
+    freelancerProfileId String
+    freelancerProfile   FreelancerProfile @relation(fields: [freelancerProfileId], references: [id], onDelete: Cascade)
+
+    title       String
+    description String? @db.Text
+    projectUrl  String?
+    imageUrl    String?
+
+    createdAt DateTime @default(now())
+
+    @@map("portfolios")
+}

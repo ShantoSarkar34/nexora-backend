@@ -1,0 +1,29 @@
+enum Role {
+    CLIENT
+    FREELANCER
+    ADMIN
+}
+
+enum AuthProvider {
+    LOCAL
+    GOOGLE
+}
+
+enum ExperienceLevel {
+    ENTRY
+    INTERMEDIATE
+    EXPERT
+}
+
+enum Availability {
+    AVAILABLE
+    BUSY
+    NOT_AVAILABLE
+}
+
+enum CompanySize {
+    SOLO
+    SMALL
+    MEDIUM
+    LARGE
+}
