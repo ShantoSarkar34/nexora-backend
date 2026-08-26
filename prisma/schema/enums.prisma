@@ -27,3 +27,28 @@ enum CompanySize {
     MEDIUM
     LARGE
 }
+
+enum JobCategory {
+    WEB_DEVELOPMENT
+    MOBILE_DEVELOPMENT
+    DESIGN
+    WRITING
+    MARKETING
+    DATA_SCIENCE
+    DEVOPS
+    OTHER
+}
+
+enum BudgetType {
+    FIXED
+    HOURLY
+}
+
+enum JobStatus {
+    DRAFT
+    OPEN
+    IN_PROGRESS
+    COMPLETED
+    CANCELLED
+    CLOSED
+}

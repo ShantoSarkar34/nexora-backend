@@ -1,0 +1,50 @@
+model Job {
+    id       String @id @default(uuid())
+    clientId String
+    client   User   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+    title           String
+    description     String          @db.Text
+    category        JobCategory
+    budgetType      BudgetType
+    budgetMin       Decimal         @db.Decimal(10, 2)
+    budgetMax       Decimal         @db.Decimal(10, 2)
+    experienceLevel ExperienceLevel
+    deadline        DateTime?
+    status          JobStatus       @default(DRAFT)
+
+    skills  JobSkill[]
+    savedBy SavedJob[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([status])
+    @@index([category])
+    @@index([clientId])
+    @@map("jobs")
+}
+
+model JobSkill {
+    id      String @id @default(uuid())
+    jobId   String
+    job     Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+    skillId String
+    skill   Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+    @@unique([jobId, skillId])
+    @@map("job_skills")
+}
+
+model SavedJob {
+    id     String @id @default(uuid())
+    userId String
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    jobId  String
+    job    Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+    createdAt DateTime @default(now())
+
+    @@unique([userId, jobId])
+    @@map("saved_jobs")
+}

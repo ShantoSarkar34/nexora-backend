@@ -3,6 +3,7 @@ model Skill {
     name String @unique
 
     freelancers FreelancerSkill[]
+    job JobSkill[]
 
     @@map("skills")
 }

@@ -5,5 +5,5 @@ dist/
 *.log
 .DS_Store
 /src/generated/prisma
-prisma/generated/
+/generated
 .vercel

@@ -11,6 +11,8 @@ model User {
 
     freelancerProfile FreelancerProfile?
     clientProfile     ClientProfile?
+    jobs              Job[]
+    saveJobs          SavedJob[]
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
