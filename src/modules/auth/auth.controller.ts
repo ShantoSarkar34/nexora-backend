@@ -3,6 +3,7 @@ import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
 import * as authService from "./auth.service";
 import { env } from "../../config/env";
+import prisma from "../../config/prismaClient";
 
 const cookieOptions = {
   httpOnly: true,
@@ -80,4 +81,16 @@ export const resetPassword = catchAsync(async (req: Request, res: Response) => {
     success: true,
     message: "Password reset successful. You can now log in.",
   });
+});
+
+export const getMe = catchAsync(async (req: Request, res: Response) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.user!.userId },
+    select: { id: true, name: true, email: true, role: true, isVerified: true, provider: true },
+  });
+  sendResponse(res, 200, { success: true, message: "Current user fetched", data: user });
+});
+
+export const adminOnlyPing = catchAsync(async (req: Request, res: Response) => {
+  sendResponse(res, 200, { success: true, message: "You have admin access." });
 });

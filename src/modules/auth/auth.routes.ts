@@ -10,6 +10,7 @@ import {
   resetPasswordSchema,
 } from "./auth.validation";
 import { authenticate } from "../../middleware/auth.middleware";
+import { authorize } from "../../middleware/authorize";
 
 const router = Router();
 
@@ -47,6 +48,14 @@ router.post(
   "/reset-password",
   validateRequest(resetPasswordSchema),
   authController.resetPassword
+);
+
+router.get("/me", authenticate, authController.getMe);
+router.get(
+  "/admin-only",
+  authenticate,
+  authorize("ADMIN"),
+  authController.adminOnlyPing
 );
 
 export default router;
