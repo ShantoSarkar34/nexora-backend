@@ -8,6 +8,7 @@ import catchAsync from "./utils/catchAsync";
 import sendResponse from "./utils/sendResponse";
 import prisma from "./config/prismaClient";
 import redisService from "./utils/redisService";
+import authRoutes from "./modules/auth/auth.routes";
 
 const app: Application = express();
 
@@ -50,6 +51,7 @@ app.get(
   })
 );
 
+app.use("/api/v1/auth", authRoutes);
 // 404 — must come after all real routes
 app.use(notFound);
 

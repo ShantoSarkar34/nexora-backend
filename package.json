@@ -22,6 +22,7 @@
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/pg": "^8.23.1",
     "prisma": "^7.10.0",
     "tsup": "^8.5.1",
@@ -32,11 +33,15 @@
     "@prisma/client": "^7.10.0",
     "@types/node": "^26.3.0",
     "@upstash/redis": "^1.38.2",
+    "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "google-auth-library": "^11.0.2",
+    "jsonwebtoken": "^9.0.3",
     "pg": "^8.23.0",
+    "resend": "^6.22.1",
     "zod": "^4.4.3"
   }
 }

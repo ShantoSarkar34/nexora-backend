@@ -13,12 +13,21 @@ enum Role {
   ADMIN
 }
 
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  role      Role
-  isVerified Boolean @default(false)
+  id                String       @id @default(uuid())
+  name              String
+  email             String       @unique
+  password          String? // nullable now — Google-only accounts have no password
+  provider          AuthProvider @default(LOCAL)
+  googleId          String?      @unique
+  role              Role
+  isVerified        Boolean      @default(false)
+  passwordChangedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -14,7 +14,13 @@ const envSchema = z.object({
   UPSTASH_REDIS_REST_TOKEN: z
     .string()
     .min(1, "UPSTASH_REDIS_REST_TOKEN is required"),
-    REDIS_NAMESPACE: z.string().default("nexora"),
+  REDIS_NAMESPACE: z.string().default("nexora"),
+
+  JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
+  JWT_EXPIRES_IN: z.string().default("7d"),
+  RESEND_API_KEY: z.string().min(1, "RESEND_API_KEY is required"),
+  EMAIL_FROM: z.string().email().default("onboarding@resend.dev"),
+GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID is required"),
 });
 
 const parsed = envSchema.safeParse(process.env);
