@@ -11,6 +11,7 @@ import redisService from "./utils/redisService";
 import authRoutes from "./modules/auth/auth.routes";
 import freelancerProfileRoutes from "./modules/freelancer-profile/freelancer-profile.routes";
 import clientProfileRoutes from "./modules/client-profile/client-profile.routes";
+import jobRoutes from "./modules/job/job.routes";
 
 const app: Application = express();
 
@@ -57,6 +58,9 @@ app.use("/api/v1/auth", authRoutes);
 
 app.use("/api/v1/profiles/freelancer", freelancerProfileRoutes);
 app.use("/api/v1/profiles/client", clientProfileRoutes);
+
+// jobs route
+app.use("/api/v1/jobs", jobRoutes);
 // 404 — must come after all real routes
 app.use(notFound);
 
