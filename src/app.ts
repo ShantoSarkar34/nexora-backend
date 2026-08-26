@@ -9,6 +9,8 @@ import sendResponse from "./utils/sendResponse";
 import prisma from "./config/prismaClient";
 import redisService from "./utils/redisService";
 import authRoutes from "./modules/auth/auth.routes";
+import freelancerProfileRoutes from "./modules/freelancer-profile/freelancer-profile.routes";
+import clientProfileRoutes from "./modules/client-profile/client-profile.routes";
 
 const app: Application = express();
 
@@ -52,6 +54,9 @@ app.get(
 );
 
 app.use("/api/v1/auth", authRoutes);
+
+app.use("/api/v1/profiles/freelancer", freelancerProfileRoutes);
+app.use("/api/v1/profiles/client", clientProfileRoutes);
 // 404 — must come after all real routes
 app.use(notFound);
 
