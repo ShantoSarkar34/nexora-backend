@@ -9,6 +9,12 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(5000),
   FRONTEND_URL: z.string().url().default("http://localhost:3000"),
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
+
+  UPSTASH_REDIS_REST_URL: z.string().url("UPSTASH_REDIS_REST_URL is required"),
+  UPSTASH_REDIS_REST_TOKEN: z
+    .string()
+    .min(1, "UPSTASH_REDIS_REST_TOKEN is required"),
+    REDIS_NAMESPACE: z.string().default("nexora"),
 });
 
 const parsed = envSchema.safeParse(process.env);

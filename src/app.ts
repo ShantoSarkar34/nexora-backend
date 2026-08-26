@@ -7,6 +7,7 @@ import errorHandler from "./middleware/errorHandler";
 import catchAsync from "./utils/catchAsync";
 import sendResponse from "./utils/sendResponse";
 import prisma from "./config/prismaClient";
+import redisService from "./utils/redisService";
 
 const app: Application = express();
 
@@ -26,6 +27,14 @@ app.get(
   "/api/v1/health",
   catchAsync(async (req: Request, res: Response) => {
     await prisma.$queryRaw`SELECT 1`;
+
+    // Exercise Redis: set → get → ttl → delete
+    const testKey = "health:check";
+    await redisService.set(testKey, "ok", 30);
+    const value = await redisService.get(testKey);
+    const ttl = await redisService.ttl(testKey);
+    await redisService.delete(testKey);
+
     sendResponse(res, 200, {
       success: true,
       message: "Nexora API is healthy",
@@ -34,6 +43,8 @@ app.get(
         timestamp: new Date().toISOString(),
         environment: env.NODE_ENV,
         database: "connected",
+        redis: value === "ok" ? "connected" : "unreachable",
+        redisTtlSample: ttl,
       },
     });
   })
