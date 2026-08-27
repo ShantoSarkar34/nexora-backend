@@ -20,7 +20,6 @@ import paymentRoutes from "./modules/payment/payment.routes";
 import aiMatchRoutes from "./modules/ai-match/ai-match.routes";
 import notificationRoutes from "./modules/notification/notification.routes";
 
-
 const app: Application = express();
 
 // Core middleware
@@ -36,6 +35,16 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
 app.use(cookieParser());
 
+// main route
+app.get(
+  "/",
+  catchAsync(async (req: Request, res: Response) => {
+    sendResponse(res, 200, {
+      success: true,
+      message: "Nexora Server is running now!",
+    });
+  })
+);
 // Health check route
 app.get(
   "/api/v1/health",
@@ -90,7 +99,7 @@ app.use("/api/v1/payments", paymentRoutes);
 
 // ai match route
 app.use("/api/v1/ai-match", aiMatchRoutes);
-// review route 
+// review route
 app.use("/api/v1/notifications", notificationRoutes);
 
 // 404 — must come after all real routes
