@@ -20,7 +20,7 @@ AI-powered freelance marketplace API. Node.js / Express 5 / TypeScript / Postgre
 | Payments | Stripe (Checkout Sessions + Webhooks) |
 | AI | Anthropic API (Claude) |
 | Validation | Zod |
-| Deployment | Vercel (serverless function via `api/index.ts`) |
+| Deployment | Vercel |
 
 ---
 
