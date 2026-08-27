@@ -16,6 +16,7 @@ model Job {
     skills       JobSkill[]
     savedBy      SavedJob[]
     applications Application[]
+    contract     Contract?
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt

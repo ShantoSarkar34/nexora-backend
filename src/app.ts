@@ -13,6 +13,8 @@ import freelancerProfileRoutes from "./modules/freelancer-profile/freelancer-pro
 import clientProfileRoutes from "./modules/client-profile/client-profile.routes";
 import jobRoutes from "./modules/job/job.routes";
 import applicationRoutes from "./modules/application/application.routes";
+import contractRoutes from "./modules/contract/contract.routes";
+
 
 const app: Application = express();
 
@@ -64,7 +66,8 @@ app.use("/api/v1/profiles/client", clientProfileRoutes);
 app.use("/api/v1/jobs", jobRoutes);
 // applications route
 app.use("/api/v1/applications", applicationRoutes);
-
+// contracts route
+app.use("/api/v1/contracts", contractRoutes);
 
 
 

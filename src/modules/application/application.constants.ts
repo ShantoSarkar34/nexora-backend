@@ -5,7 +5,7 @@ export const APPLICATION_STATUS_TRANSITIONS: Record<
   ApplicationStatus,
   ApplicationStatus[]
 > = {
-  PENDING: ["SHORTLISTED", "REJECTED", "WITHDRAWN"],
+  PENDING: ["SHORTLISTED", "REJECTED", "WITHDRAWN", "HIRED"],
   SHORTLISTED: ["REJECTED", "WITHDRAWN", "HIRED"],
   REJECTED: [],
   HIRED: [],

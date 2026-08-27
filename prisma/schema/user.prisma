@@ -9,11 +9,13 @@ model User {
     isVerified        Boolean      @default(false)
     passwordChangedAt DateTime?
 
-    freelancerProfile FreelancerProfile?
-    clientProfile     ClientProfile?
-    jobs              Job[]
-    saveJobs          SavedJob[]
-    applications      Application[]
+    freelancerProfile   FreelancerProfile?
+    clientProfile       ClientProfile?
+    jobs                Job[]
+    saveJobs            SavedJob[]
+    applications        Application[]
+    clientContracts     Contract[]         @relation("ClientContracts")
+    freelancerContracts Contract[]         @relation("FreelancerContracts")
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt

@@ -9,6 +9,7 @@ model Application {
     proposedBudget        Decimal           @db.Decimal(10, 2)
     estimatedDeliveryDays Int
     status                ApplicationStatus @default(PENDING)
+    contract              Contract?
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt

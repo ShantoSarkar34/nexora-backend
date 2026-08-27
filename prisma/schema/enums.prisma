@@ -54,9 +54,18 @@ enum JobStatus {
 }
 
 enum ApplicationStatus {
-  PENDING
-  SHORTLISTED
-  REJECTED
-  HIRED
-  WITHDRAWN
+    PENDING
+    SHORTLISTED
+    REJECTED
+    HIRED
+    WITHDRAWN
+}
+
+enum ContractStatus {
+    PENDING
+    ACTIVE
+    SUBMITTED
+    COMPLETED
+    CANCELLED
+    DISPUTED
 }
