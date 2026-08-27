@@ -12,6 +12,7 @@ import authRoutes from "./modules/auth/auth.routes";
 import freelancerProfileRoutes from "./modules/freelancer-profile/freelancer-profile.routes";
 import clientProfileRoutes from "./modules/client-profile/client-profile.routes";
 import jobRoutes from "./modules/job/job.routes";
+import applicationRoutes from "./modules/application/application.routes";
 
 const app: Application = express();
 
@@ -61,6 +62,13 @@ app.use("/api/v1/profiles/client", clientProfileRoutes);
 
 // jobs route
 app.use("/api/v1/jobs", jobRoutes);
+// applications route
+app.use("/api/v1/applications", applicationRoutes);
+
+
+
+
+
 // 404 — must come after all real routes
 app.use(notFound);
 
