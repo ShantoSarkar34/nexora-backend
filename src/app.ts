@@ -50,7 +50,6 @@ app.get(
   "/api/v1/health",
   catchAsync(async (req: Request, res: Response) => {
     await prisma.$queryRaw`SELECT 1`;
-
     // Exercise Redis: set → get → ttl → delete
     const testKey = "health:check";
     await redisService.set(testKey, "ok", 30);
