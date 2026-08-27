@@ -1,0 +1,20 @@
+model Review {
+  id         String   @id @default(uuid())
+  contractId String
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  reviewerId String
+  reviewer   User   @relation("ReviewsGiven", fields: [reviewerId], references: [id], onDelete: Cascade)
+
+  revieweeId String
+  reviewee   User   @relation("ReviewsReceived", fields: [revieweeId], references: [id], onDelete: Cascade)
+
+  rating  Int
+  comment String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@unique([contractId, reviewerId])
+  @@index([revieweeId])
+  @@map("reviews")
+}

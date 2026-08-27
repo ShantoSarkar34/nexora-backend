@@ -14,6 +14,8 @@ import clientProfileRoutes from "./modules/client-profile/client-profile.routes"
 import jobRoutes from "./modules/job/job.routes";
 import applicationRoutes from "./modules/application/application.routes";
 import contractRoutes from "./modules/contract/contract.routes";
+import reviewRoutes from "./modules/review/review.routes";
+
 
 
 const app: Application = express();
@@ -68,6 +70,8 @@ app.use("/api/v1/jobs", jobRoutes);
 app.use("/api/v1/applications", applicationRoutes);
 // contracts route
 app.use("/api/v1/contracts", contractRoutes);
+// review route
+app.use("/api/v1/reviews", reviewRoutes);
 
 
 

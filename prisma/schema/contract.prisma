@@ -23,6 +23,8 @@ model Contract {
   cancelledAt    DateTime?
   cancelReason   String?   @db.Text
 
+  reviews Review[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

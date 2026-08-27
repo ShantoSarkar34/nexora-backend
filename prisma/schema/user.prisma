@@ -16,6 +16,8 @@ model User {
     applications        Application[]
     clientContracts     Contract[]         @relation("ClientContracts")
     freelancerContracts Contract[]         @relation("FreelancerContracts")
+    reviewsGiven        Review[]           @relation("ReviewsGiven")
+    reviewsReceived     Review[]           @relation("ReviewsReceived")
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
