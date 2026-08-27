@@ -52,3 +52,11 @@ enum JobStatus {
     CANCELLED
     CLOSED
 }
+
+enum ApplicationStatus {
+  PENDING
+  SHORTLISTED
+  REJECTED
+  HIRED
+  WITHDRAWN
+}

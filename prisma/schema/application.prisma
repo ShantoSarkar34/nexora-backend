@@ -1,0 +1,21 @@
+model Application {
+    id           String @id @default(uuid())
+    jobId        String
+    job          Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+    freelancerId String
+    freelancer   User   @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+
+    coverLetter           String            @db.Text
+    proposedBudget        Decimal           @db.Decimal(10, 2)
+    estimatedDeliveryDays Int
+    status                ApplicationStatus @default(PENDING)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@unique([jobId, freelancerId])
+    @@index([jobId])
+    @@index([freelancerId])
+    @@index([status])
+    @@map("applications")
+}
