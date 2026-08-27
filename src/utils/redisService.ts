@@ -53,8 +53,25 @@ class RedisService {
       const result = await redis.exists(this.prefixKey(key));
       return result === 1;
     } catch (error) {
-      console.error(`[Redis] Failed to check existence of key "${key}":`, error);
+      console.error(
+        `[Redis] Failed to check existence of key "${key}":`,
+        error
+      );
       return false;
+    }
+  }
+
+  async increment(key: string, ttlSeconds?: number): Promise<number> {
+    try {
+      const prefixedKey = this.prefixKey(key);
+      const count = await redis.incr(prefixedKey);
+      if (count === 1 && ttlSeconds) {
+        await redis.expire(prefixedKey, ttlSeconds);
+      }
+      return count;
+    } catch (error) {
+      console.error(`[Redis] Failed to INCR key "${key}":`, error);
+      throw error;
     }
   }
 }

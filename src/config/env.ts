@@ -26,6 +26,9 @@ const envSchema = z.object({
 
   STRIPE_SECRET_KEY: z.string().min(1, "STRIPE_SECRET_KEY is required"),
   STRIPE_WEBHOOK_SECRET: z.string().min(1, "STRIPE_WEBHOOK_SECRET is required"),
+
+  ANTHROPIC_API_KEY: z.string().min(1, "ANTHROPIC_API_KEY is required"),
+  AI_DAILY_REQUEST_LIMIT: z.coerce.number().default(20),
 });
 
 const parsed = envSchema.safeParse(process.env);

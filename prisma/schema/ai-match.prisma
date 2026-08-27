@@ -1,0 +1,20 @@
+model JobMatchAnalysis {
+  id String @id @default(uuid())
+
+  jobId String
+  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  freelancerId String
+  freelancer   User   @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+
+  matchScore     Int
+  strengths      String[]
+  missingSkills  String[]
+  recommendation String   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([jobId, freelancerId])
+  @@map("job_match_analyses")
+}
