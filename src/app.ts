@@ -15,7 +15,8 @@ import jobRoutes from "./modules/job/job.routes";
 import applicationRoutes from "./modules/application/application.routes";
 import contractRoutes from "./modules/contract/contract.routes";
 import reviewRoutes from "./modules/review/review.routes";
-
+import paymentWebhookRoutes from "./modules/payment/payment.webhook.routes";
+import paymentRoutes from "./modules/payment/payment.routes";
 
 
 const app: Application = express();
@@ -30,6 +31,8 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
+app.use(cookieParser());
 
 // Health check route
 app.get(
@@ -72,7 +75,13 @@ app.use("/api/v1/applications", applicationRoutes);
 app.use("/api/v1/contracts", contractRoutes);
 // review route
 app.use("/api/v1/reviews", reviewRoutes);
+// payment routes 
+app.use("/api/v1/payments/webhook", express.raw({ type: "application/json" }), paymentWebhookRoutes);
 
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+// ... health route, existing route mounts ...
+app.use("/api/v1/payments", paymentRoutes);
 
 
 

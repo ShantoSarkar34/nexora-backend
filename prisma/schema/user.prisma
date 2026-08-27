@@ -19,6 +19,8 @@ model User {
     reviewsGiven        Review[]           @relation("ReviewsGiven")
     reviewsReceived     Review[]           @relation("ReviewsReceived")
 
+    payments Payment[]
+
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 

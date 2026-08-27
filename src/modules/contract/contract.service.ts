@@ -254,14 +254,30 @@ export const cancelContract = async (
       },
       include: includeContractDetails,
     });
-    // Job reopens for a fresh hiring round rather than being dead-ended.
-    // Note: previously auto-rejected applications from the original hire
-    // stay REJECTED — the client would need fresh applications or manual
-    // review of the pool. Acceptable simplification for now.
     await tx.job.update({
       where: { id: contract.jobId },
       data: { status: "OPEN" },
     });
     return updated;
+  });
+};
+
+export const activateContractSystem = async (contractId: string) => {
+  const contract = await prisma.contract.findUnique({
+    where: { id: contractId },
+  });
+  if (!contract) throw new ApiError(404, "Contract not found");
+
+  const allowedNext = CONTRACT_STATUS_TRANSITIONS[contract.status];
+  if (!allowedNext.includes("ACTIVE")) {
+    throw new ApiError(
+      400,
+      `Cannot activate contract from status ${contract.status}`
+    );
+  }
+
+  return prisma.contract.update({
+    where: { id: contractId },
+    data: { status: "ACTIVE" },
   });
 };

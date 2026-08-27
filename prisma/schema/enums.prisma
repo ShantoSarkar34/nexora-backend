@@ -69,3 +69,16 @@ enum ContractStatus {
     CANCELLED
     DISPUTED
 }
+
+enum PaymentProvider {
+    STRIPE
+}
+
+enum PaymentStatus {
+    PENDING
+    PROCESSING
+    SUCCESS
+    FAILED
+    CANCELLED
+    REFUNDED
+}

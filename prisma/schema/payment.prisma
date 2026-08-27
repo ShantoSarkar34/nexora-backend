@@ -1,0 +1,25 @@
+model Payment {
+    id String @id @default(uuid())
+
+    contractId String
+    contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+    payerId String
+    payer   User   @relation(fields: [payerId], references: [id], onDelete: Cascade)
+
+    amount   Decimal         @db.Decimal(10, 2)
+    currency String          @default("usd")
+    provider PaymentProvider @default(STRIPE)
+    status   PaymentStatus   @default(PENDING)
+
+    providerRef String? @unique // Stripe Checkout Session ID
+    metadata    Json?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([contractId])
+    @@index([payerId])
+    @@index([status])
+    @@map("payments")
+}
