@@ -21,6 +21,7 @@ model User {
 
     payments      Payment[]
     matchAnalyses JobMatchAnalysis[]
+    notifications Notification[]
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt

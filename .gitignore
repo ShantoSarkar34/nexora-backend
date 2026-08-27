@@ -7,4 +7,4 @@ dist/
 /src/generated/prisma
 /generated
 .vercel
-/note
+.project_progress.txt

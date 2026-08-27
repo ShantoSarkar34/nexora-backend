@@ -2,6 +2,7 @@ import prisma from "../../config/prismaClient";
 import ApiError from "../../utils/ApiError";
 import { JwtPayload } from "../../utils/jwt";
 import { getPagination, buildMeta } from "../../utils/pagination";
+import { notifyUser } from "../notification/notification.service";
 import { ICreateReview, IReviewListQuery } from "./review.interface";
 
 const includeReviewDetails = {
@@ -25,9 +26,6 @@ export const createReview = async (
     throw new ApiError(400, "You can only review completed contracts");
   }
 
-  // Reviewee is DERIVED from the contract, never taken from the request body.
-  // This is the whole point of the design — the client can't choose who
-  // they're "reviewing."
   let revieweeId: string;
   if (contract.clientId === currentUser.userId) {
     revieweeId = contract.freelancerId;
@@ -46,7 +44,7 @@ export const createReview = async (
     throw new ApiError(409, "You have already reviewed this contract");
   }
 
-  return prisma.review.create({
+  const review = await prisma.review.create({
     data: {
       contractId,
       reviewerId: currentUser.userId,
@@ -56,6 +54,16 @@ export const createReview = async (
     },
     include: includeReviewDetails,
   });
+
+  await notifyUser({
+    userId: revieweeId,
+    type: "NEW_REVIEW",
+    title: "You received a new review",
+    message: `You received a ${data.rating}-star review`,
+    link: `/contracts/${contractId}`,
+  });
+
+  return review;
 };
 
 export const getReviewsForContract = async (

@@ -14,6 +14,8 @@ import {
   IApplicationListQuery,
 } from "./application.interface";
 import { ApplicationStatus, Prisma } from "../../../generated/prisma/client";
+import { notifyUser } from "../notification/notification.service";
+import { application } from "express";
 
 const includeApplicationDetails = {
   job: { select: { id: true, title: true, status: true, clientId: true } },
@@ -26,10 +28,7 @@ const includeApplicationDetails = {
   },
 };
 
-export const createApplication = async (
-  freelancerId: string,
-  data: ICreateApplication
-) => {
+export const createApplication = async (freelancerId: string, data: ICreateApplication) => {
   const job = await getJobById(data.jobId);
 
   if (!isJobOpenForApplications(job.status)) {
@@ -43,7 +42,7 @@ export const createApplication = async (
     throw new ApiError(409, "You have already applied to this job");
   }
 
-  return prisma.application.create({
+  const application = await prisma.application.create({
     data: {
       jobId: data.jobId,
       freelancerId,
@@ -53,6 +52,16 @@ export const createApplication = async (
     },
     include: includeApplicationDetails,
   });
+
+  await notifyUser({
+    userId: job.clientId,
+    type: "NEW_APPLICATION",
+    title: "New application received",
+    message: `A freelancer applied to your job "${job.title}"`,
+    link: `/jobs/${job.id}/applications`,
+  });
+
+  return application;
 };
 
 export const getApplicationById = async (
@@ -157,6 +166,24 @@ export const updateApplicationStatus = async (
     );
   }
 
+  if (newStatus === "SHORTLISTED" || newStatus === "REJECTED") {
+    await notifyUser({
+      userId: application.freelancerId,
+      type:
+        newStatus === "SHORTLISTED"
+          ? "APPLICATION_SHORTLISTED"
+          : "APPLICATION_REJECTED",
+      title:
+        newStatus === "SHORTLISTED"
+          ? "You've been shortlisted!"
+          : "Application update",
+      message: `Your application for "${
+        application.job.title ?? "a job"
+      }" was ${newStatus.toLowerCase()}`,
+      link: `/applications/${applicationId}`,
+    });
+  }
+
   return prisma.application.update({
     where: { id: applicationId },
     data: { status: newStatus },
@@ -187,9 +214,6 @@ export const withdrawApplication = async (
   });
 };
 
-// Exported for Phase 9's hiring flow — hiring transitions an application to
-// HIRED as part of a larger Prisma transaction (application + job + contract
-// all updated together), so it deliberately isn't wired to a route here.
 export const markApplicationAsHired = async (applicationId: string) => {
   const application = await prisma.application.findUnique({
     where: { id: applicationId },
@@ -204,5 +228,5 @@ export const markApplicationAsHired = async (applicationId: string) => {
     );
   }
 
-  return application; // Phase 9 performs the actual update inside its own transaction
+  return application;
 };

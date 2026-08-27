@@ -10,6 +10,7 @@ import {
 import { ISubmitWork, IContractListQuery } from "./contract.interface";
 import { APPLICATION_STATUS_TRANSITIONS } from "../application/application.constants";
 import { Prisma } from "../../../generated/prisma/client";
+import { notifyUser } from "../notification/notification.service";
 
 const includeContractDetails = {
   job: { select: { id: true, title: true, status: true } },
@@ -51,17 +52,12 @@ export const hireFreelancer = async (
     throw new ApiError(409, "This job already has an active contract");
   }
 
-  // Everything below runs as ONE atomic operation. All queries use `tx`,
-  // never the top-level `prisma` client — mixing the two would silently
-  // escape the transaction and defeat the whole point of using one.
-  return prisma.$transaction(async (tx) => {
+  const contract = await prisma.$transaction(async (tx) => {
     await tx.application.update({
       where: { id: applicationId },
       data: { status: "HIRED" },
     });
 
-    // Auto-reject every other still-open application for this job —
-    // standard marketplace behavior once a hire is made.
     await tx.application.updateMany({
       where: {
         jobId: application.jobId,
@@ -88,6 +84,16 @@ export const hireFreelancer = async (
       include: includeContractDetails,
     });
   });
+
+  await notifyUser({
+    userId: contract.freelancerId,
+    type: "FREELANCER_HIRED",
+    title: "You've been hired!",
+    message: `You were hired for "${contract.job.title}". Waiting for payment to activate the contract.`,
+    link: `/contracts/${contract.id}`,
+  });
+
+  return contract;
 };
 
 const assertParticipant = (
@@ -169,21 +175,36 @@ const transitionContract = async (
   });
 };
 
-// Client-triggered for now. Phase 11 will call this same transition logic
-// from a verified payment webhook instead of exposing it as a direct route.
 export const activateContract = (contractId: string, currentUser: JwtPayload) =>
   transitionContract(contractId, currentUser, "ACTIVE", "clientId");
 
-export const submitWork = (
+export const submitWork = async (
   contractId: string,
   currentUser: JwtPayload,
   data: ISubmitWork
-) =>
-  transitionContract(contractId, currentUser, "SUBMITTED", "freelancerId", {
-    submissionNote: data.submissionNote,
-    submissionUrl: data.submissionUrl,
-    submittedAt: new Date(),
+) => {
+  const updated = await transitionContract(
+    contractId,
+    currentUser,
+    "SUBMITTED",
+    "freelancerId",
+    {
+      submissionNote: data.submissionNote,
+      submissionUrl: data.submissionUrl,
+      submittedAt: new Date(),
+    }
+  );
+
+  await notifyUser({
+    userId: updated.clientId,
+    type: "WORK_SUBMITTED",
+    title: "Work submitted for review",
+    message: `Work has been submitted on your contract for "${updated.job.title}"`,
+    link: `/contracts/${contractId}`,
   });
+
+  return updated;
+};
 
 export const requestRevision = (contractId: string, currentUser: JwtPayload) =>
   transitionContract(contractId, currentUser, "ACTIVE", "clientId", {
@@ -211,8 +232,8 @@ export const approveWork = async (
     );
   }
 
-  return prisma.$transaction(async (tx) => {
-    const updated = await tx.contract.update({
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.contract.update({
       where: { id: contractId },
       data: { status: "COMPLETED", completedAt: new Date() },
       include: includeContractDetails,
@@ -221,8 +242,18 @@ export const approveWork = async (
       where: { id: contract.jobId },
       data: { status: "COMPLETED" },
     });
-    return updated;
+    return result;
   });
+
+  await notifyUser({
+    userId: updated.freelancerId,
+    type: "CONTRACT_COMPLETED",
+    title: "Contract completed",
+    message: `Your work on "${updated.job.title}" has been approved. The contract is now complete.`,
+    link: `/contracts/${contractId}`,
+  });
+
+  return updated;
 };
 
 /** Either participant can cancel, while it's still PENDING or ACTIVE. Reopens the job for re-hiring. */
@@ -276,8 +307,20 @@ export const activateContractSystem = async (contractId: string) => {
     );
   }
 
-  return prisma.contract.update({
+  const updated = await prisma.contract.update({
     where: { id: contractId },
     data: { status: "ACTIVE" },
+    include: includeContractDetails,
   });
+
+  await notifyUser({
+    userId: updated.freelancerId,
+    type: "CONTRACT_ACTIVATED",
+    title: "Contract activated",
+    message:
+      "Payment confirmed — your contract is now active. You can begin work.",
+    link: `/contracts/${contractId}`,
+  });
+
+  return updated;
 };

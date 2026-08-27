@@ -18,6 +18,8 @@ import reviewRoutes from "./modules/review/review.routes";
 import paymentWebhookRoutes from "./modules/payment/payment.webhook.routes";
 import paymentRoutes from "./modules/payment/payment.routes";
 import aiMatchRoutes from "./modules/ai-match/ai-match.routes";
+import notificationRoutes from "./modules/notification/notification.routes";
+
 
 const app: Application = express();
 
@@ -81,14 +83,15 @@ app.use(
   express.raw({ type: "application/json" }),
   paymentWebhookRoutes
 );
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-// ... health route, existing route mounts ...
+// health route, existing route mounts
 app.use("/api/v1/payments", paymentRoutes);
 
 // ai match route
 app.use("/api/v1/ai-match", aiMatchRoutes);
+// review route 
+app.use("/api/v1/notifications", notificationRoutes);
 
 // 404 — must come after all real routes
 app.use(notFound);

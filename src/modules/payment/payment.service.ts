@@ -10,6 +10,7 @@ import redisService from "../../utils/redisService";
 import { IPaymentListQuery } from "./payment.interface";
 import { Prisma } from "../../../generated/prisma/client";
 import Stripe from "stripe";
+import { notifyUser } from "../notification/notification.service";
 
 const includePaymentDetails = {
   contract: {
@@ -125,11 +126,6 @@ export const listMyPayments = async (
   return { payments, meta: buildMeta(total, page, limit) };
 };
 
-/**
- * Handles verified Stripe webhook events. Idempotent at two layers:
- * 1. Redis guard against the exact same event.id being delivered twice.
- * 2. Payment.status check against the exact same session being completed twice.
- */
 export const handleStripeWebhookEvent = async (event: Stripe.Event) => {
   const eventDedupeKey = `payment:webhook-event:${event.id}`;
   if (await redisService.exists(eventDedupeKey)) {
@@ -138,7 +134,7 @@ export const handleStripeWebhookEvent = async (event: Stripe.Event) => {
     );
     return;
   }
-  await redisService.set(eventDedupeKey, "1", 24 * 60 * 60); // 24h TTL — well beyond Stripe's retry window
+  await redisService.set(eventDedupeKey, "1", 24 * 60 * 60);
 
   switch (event.type) {
     case "checkout.session.completed": {
@@ -168,7 +164,17 @@ export const handleStripeWebhookEvent = async (event: Stripe.Event) => {
         },
       });
 
-      await activateContractSystem(payment.contractId);
+      const contract = await activateContractSystem(payment.contractId);
+
+      await notifyUser({
+        userId: contract.freelancerId,
+        type: "PAYMENT_SUCCESSFUL",
+        title: "Payment received",
+        message:
+          "The client's payment has been confirmed and your contract is now active.",
+        link: `/contracts/${contract.id}`,
+      });
+
       break;
     }
 
