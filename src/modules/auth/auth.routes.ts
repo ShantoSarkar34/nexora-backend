@@ -11,27 +11,34 @@ import {
 } from "./auth.validation";
 import { authenticate } from "../../middleware/auth.middleware";
 import { authorize } from "../../middleware/authorize";
+import {
+  forgotPasswordRateLimiter,
+  loginRateLimiter,
+  otpRateLimiter,
+  registerRateLimiter,
+} from "../../middleware/rateLimiters";
 
 const router = Router();
 
 router.post(
   "/register",
+  registerRateLimiter,
   validateRequest(registerSchema),
   authController.register
 );
-router.post("/login", validateRequest(loginSchema), authController.login);
 router.post(
-  "/google",
-  validateRequest(googleAuthSchema),
-  authController.googleAuth
+  "/login",
+  loginRateLimiter,
+  validateRequest(loginSchema),
+  authController.login
 );
-router.post("/logout", authenticate, authController.logout);
-
 router.post(
   "/send-verification-otp",
   authenticate,
+  otpRateLimiter,
   authController.sendVerificationOtp
 );
+
 router.post(
   "/verify-otp",
   authenticate,
@@ -39,11 +46,15 @@ router.post(
   authController.verifyOtp
 );
 
+router.post("/logout", authenticate, authController.logout);
+
 router.post(
   "/forgot-password",
+  forgotPasswordRateLimiter,
   validateRequest(forgotPasswordSchema),
   authController.forgotPassword
 );
+
 router.post(
   "/reset-password",
   validateRequest(resetPasswordSchema),

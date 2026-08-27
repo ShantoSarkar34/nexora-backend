@@ -7,6 +7,7 @@ import { getPagination, buildMeta } from "../../utils/pagination";
 import { JOB_STATUS_TRANSITIONS, EDITABLE_JOB_STATUSES } from "./job.constants";
 import { ICreateJob, IUpdateJob, IJobListQuery } from "./job.interface";
 import { JobStatus, Prisma } from "../../../generated/prisma/client";
+import redisService from "../../utils/redisService";
 
 const includeJobDetails = {
   skills: { include: { skill: true } },
@@ -18,13 +19,24 @@ const includeJobDetails = {
     },
   },
 };
+const JOB_LIST_CACHE_TTL = 60;
+
+const getJobListCacheKey = async (query: IJobListQuery): Promise<string> => {
+  const version = (await redisService.get("jobs:list:version")) ?? "1";
+  const normalized = JSON.stringify(query, Object.keys(query).sort());
+  return `jobs:list:v${version}:${normalized}`;
+};
+
+const invalidateJobListCache = async (): Promise<void> => {
+  await redisService.increment("jobs:list:version");
+};
 
 export const createJob = async (clientId: string, data: ICreateJob) => {
   const { skills, ...jobData } = data;
   const skillRecords = await Promise.all(
     skills.map((name) => findOrCreateSkill(name))
   );
-
+  await invalidateJobListCache();
   return prisma.job.create({
     data: {
       ...jobData,
@@ -60,7 +72,7 @@ export const updateJob = async (
       data: skillRecords.map((skill) => ({ jobId, skillId: skill.id })),
     });
   }
-
+  await invalidateJobListCache();
   return prisma.job.update({
     where: { id: jobId },
     data: jobData,
@@ -84,7 +96,7 @@ export const updateJobStatus = async (
       `Cannot change status from ${job.status} to ${newStatus}`
     );
   }
-
+  await invalidateJobListCache();
   return prisma.job.update({
     where: { id: jobId },
     data: { status: newStatus },
@@ -104,6 +116,7 @@ export const deleteJob = async (jobId: string, currentUser: JwtPayload) => {
   }
 
   await prisma.job.delete({ where: { id: jobId } });
+  await invalidateJobListCache();
 };
 
 export const getJobById = async (jobId: string) => {
@@ -116,10 +129,16 @@ export const getJobById = async (jobId: string) => {
 };
 
 export const listJobs = async (query: IJobListQuery) => {
+  const cacheKey = await getJobListCacheKey(query);
+  const cached = await redisService.get(cacheKey);
+  if (cached) {
+    return JSON.parse(cached);
+  }
+
   const { skip, take, page, limit } = getPagination(query);
 
   const where: Prisma.JobWhereInput = {
-    status: "OPEN", // public listing only ever shows actively open jobs
+    status: "OPEN",
     ...(query.category && { category: query.category }),
     ...(query.budgetType && { budgetType: query.budgetType }),
     ...(query.experienceLevel && { experienceLevel: query.experienceLevel }),
@@ -155,7 +174,9 @@ export const listJobs = async (query: IJobListQuery) => {
     prisma.job.count({ where }),
   ]);
 
-  return { jobs, meta: buildMeta(total, page, limit) };
+  const result = { jobs, meta: buildMeta(total, page, limit) };
+  await redisService.set(cacheKey, JSON.stringify(result), JOB_LIST_CACHE_TTL);
+  return result;
 };
 
 export const listMyJobs = async (
@@ -219,8 +240,5 @@ export const listSavedJobs = async (userId: string, query: IJobListQuery) => {
   return { savedJobs, meta: buildMeta(total, page, limit) };
 };
 
-// Exported for Phase 8 — the Application module will call this before
-// allowing a proposal to be submitted, per your rule: "Closed jobs cannot
-// receive applications."
 export const isJobOpenForApplications = (status: JobStatus): boolean =>
   status === "OPEN";
