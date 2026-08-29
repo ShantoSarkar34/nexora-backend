@@ -19,6 +19,7 @@ import paymentWebhookRoutes from "./modules/payment/payment.webhook.routes";
 import paymentRoutes from "./modules/payment/payment.routes";
 import aiMatchRoutes from "./modules/ai-match/ai-match.routes";
 import notificationRoutes from "./modules/notification/notification.routes";
+import { allowedOrigins, isVercelPreviewOrigin } from "./config/corsOrigins";
 
 const app: Application = express();
 
@@ -32,7 +33,22 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
+// app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin) || isVercelPreviewOrigin(origin)) {
+        return callback(null, true);
+      }
+
+      console.warn(`[CORS] Blocked request from unauthorized origin: ${origin}`);
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+  })
+);
 app.use(cookieParser());
 
 // main route

@@ -29,6 +29,7 @@ const envSchema = z.object({
 
   ANTHROPIC_API_KEY: z.string().min(1, "ANTHROPIC_API_KEY is required"),
   AI_DAILY_REQUEST_LIMIT: z.coerce.number().default(20),
+  ADDITIONAL_ALLOWED_ORIGINS: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -36,7 +37,7 @@ const parsed = envSchema.safeParse(process.env);
 if (!parsed.success) {
   console.error(
     "❌ Invalid environment variables:",
-    parsed.error.flatten().fieldErrors
+    parsed.error.flatten().fieldErrors,
   );
   process.exit(1);
 }
