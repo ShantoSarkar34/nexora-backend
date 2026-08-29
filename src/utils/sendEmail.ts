@@ -1,3 +1,4 @@
+// src/utils/sendEmail.ts
 import { Resend } from "resend";
 import { env } from "../config/env";
 import ApiError from "./ApiError";
@@ -22,15 +23,20 @@ export const sendEmail = async ({
     html,
   });
   if (error) {
-    console.error("[Email] Resend API error:", error);
-    throw new ApiError(500, "Failed to send email");
+    console.error("[Email] Resend API error:", JSON.stringify(error, null, 2));
+    // In development, a failed send is logged but NOT fatal — the dev
+    // console.log fallbacks below give you what you need to keep testing.
+    // In production, a failed send IS a real problem the caller must know about.
+    if (env.NODE_ENV !== "development") {
+      throw new ApiError(500, "Failed to send email");
+    }
   }
 };
 
 export const sendVerificationOtpEmail = async (
   to: string,
   name: string,
-  otp: string
+  otp: string,
 ) => {
   if (env.NODE_ENV === "development") {
     console.log(`\n🔐 [DEV] Verification code for ${to}: ${otp}\n`);
@@ -42,7 +48,7 @@ export const sendVerificationOtpEmail = async (
       <h2>Hi ${name},</h2>
       <p>Your verification code is:</p>
       <p style="font-size:32px;font-weight:bold;letter-spacing:6px;">${otp}</p>
-      <p style="color:#666;font-size:13px;">This code expires in 10 minutes. Enter it in your dashboard to verify your account.</p>
+      <p style="color:#666;font-size:13px;">This code expires in 10 minutes.</p>
     </div>`,
   });
 };
@@ -50,9 +56,14 @@ export const sendVerificationOtpEmail = async (
 export const sendPasswordResetEmail = async (
   to: string,
   name: string,
-  rawToken: string
+  rawToken: string,
 ) => {
   const resetUrl = `${env.FRONTEND_URL}/reset-password?token=${rawToken}`;
+
+  if (env.NODE_ENV === "development") {
+    console.log(`\n📧 [DEV] Reset link for ${to}:\n${resetUrl}\n`);
+  }
+
   await sendEmail({
     to,
     subject: "Reset your Nexora password",
