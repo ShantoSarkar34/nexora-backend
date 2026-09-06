@@ -1,7 +1,7 @@
 import prisma from "../../config/prismaClient";
 import ApiError from "../../utils/ApiError";
 import redisService from "../../utils/redisService";
-import { anthropic } from "../../config/anthropicClient";
+import { gemini } from "../../config/geminiClient";
 import { env } from "../../config/env";
 import { calculateRuleBasedMatch } from "./ruleBasedMatch.service";
 import { aiMatchResponseSchema } from "./ai-match.validation";
@@ -28,7 +28,7 @@ const getJobAndFreelancer = async (jobId: string, freelancerId: string) => {
   if (!freelancerProfile)
     throw new ApiError(
       404,
-      "Complete your freelancer profile before requesting a match analysis"
+      "Complete your freelancer profile before requesting a match analysis",
     );
 
   return { job, freelancerProfile };
@@ -36,18 +36,24 @@ const getJobAndFreelancer = async (jobId: string, freelancerId: string) => {
 
 export const getRuleBasedMatch = async (
   jobId: string,
-  freelancerId: string
+  freelancerId: string,
 ) => {
   const { job, freelancerProfile } = await getJobAndFreelancer(
     jobId,
-    freelancerId
+    freelancerId,
   );
   return calculateRuleBasedMatch(job, freelancerProfile);
 };
 
+const GEMINI_MODEL_CANDIDATES = [
+  "gemini-2.5-flash",
+  "gemini-flash-latest",
+  "gemini-2.5-flash-lite",
+];
+
 const callAiForAnalysis = async (
   job: any,
-  freelancerProfile: any
+  freelancerProfile: any,
 ): Promise<IAiMatchResult> => {
   const jobSkills = job.skills.map((s: any) => s.skill.name).join(", ");
   const freelancerSkills = freelancerProfile.skills
@@ -75,28 +81,43 @@ Skills: ${freelancerSkills}
 Experience level: ${freelancerProfile.experienceLevel ?? "Not set"}
 Portfolio projects: ${portfolioSummary}`;
 
-  let rawText: string;
-  try {
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 500,
-      messages: [{ role: "user", content: prompt }],
-    });
-    const textBlock = response.content.find((block) => block.type === "text");
-    if (!textBlock || textBlock.type !== "text")
-      throw new Error("No text content in AI response");
-    rawText = textBlock.text;
-  } catch (error) {
-    console.error("[AI Match] Anthropic API call failed:", error);
+  let rawText: string | null = null;
+  let lastError: unknown = null;
+
+  for (const model of GEMINI_MODEL_CANDIDATES) {
+    try {
+      const response = await gemini.models.generateContent({
+        model,
+        contents: prompt,
+      });
+      rawText = response.text ?? "";
+      if (rawText) {
+        console.log(`[AI Match] Successfully used model "${model}"`);
+        break;
+      }
+    } catch (error: any) {
+      lastError = error;
+      console.warn(`[AI Match] Model "${model}" failed:`, {
+        status: error?.status,
+        message: error?.message,
+        details: error?.error ?? error?.response?.data ?? null,
+      });
+    }
+  }
+
+  if (!rawText) {
+    console.error(
+      "[AI Match] All Gemini model candidates failed. Last error was:",
+      lastError,
+    );
     throw new ApiError(
       502,
-      "AI analysis service is temporarily unavailable. Please try again shortly."
+      "AI analysis service is temporarily unavailable. Please try again shortly.",
     );
   }
 
   let parsedJson: unknown;
   try {
-    // Defensive: strip markdown code fences if the model wraps its output anyway.
     const cleaned = rawText
       .replace(/^```json\s*/i, "")
       .replace(/```\s*$/i, "")
@@ -106,7 +127,7 @@ Portfolio projects: ${portfolioSummary}`;
     console.error("[AI Match] Failed to parse AI response as JSON:", rawText);
     throw new ApiError(
       502,
-      "AI returned an unreadable response. Please try again."
+      "AI returned an unreadable response. Please try again.",
     );
   }
 
@@ -114,11 +135,11 @@ Portfolio projects: ${portfolioSummary}`;
   if (!validation.success) {
     console.error(
       "[AI Match] AI response failed schema validation:",
-      validation.error.flatten()
+      validation.error.flatten(),
     );
     throw new ApiError(
       502,
-      "AI returned an invalid response format. Please try again."
+      "AI returned an invalid response format. Please try again.",
     );
   }
 
@@ -127,11 +148,11 @@ Portfolio projects: ${portfolioSummary}`;
 
 export const requestAiAnalysis = async (
   jobId: string,
-  freelancerId: string
+  freelancerId: string,
 ) => {
   const { job, freelancerProfile } = await getJobAndFreelancer(
     jobId,
-    freelancerId
+    freelancerId,
   );
 
   // Rate limit BEFORE spending money on an API call.
@@ -140,7 +161,7 @@ export const requestAiAnalysis = async (
   if (currentUsage > env.AI_DAILY_REQUEST_LIMIT) {
     throw new ApiError(
       429,
-      `Daily AI analysis limit reached (${env.AI_DAILY_REQUEST_LIMIT}/day). Try again tomorrow.`
+      `Daily AI analysis limit reached (${env.AI_DAILY_REQUEST_LIMIT}/day). Try again tomorrow.`,
     );
   }
 
