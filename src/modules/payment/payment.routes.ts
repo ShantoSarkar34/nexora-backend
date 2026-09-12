@@ -11,18 +11,24 @@ router.post(
   "/contract/:contractId/checkout",
   authenticate,
   authorize("CLIENT"),
-  paymentController.createCheckoutSession
+  paymentController.createCheckoutSession,
 );
 router.get(
   "/contract/:contractId",
   authenticate,
-  paymentController.getPaymentsForContract
+  paymentController.getPaymentsForContract,
 );
 router.get(
   "/me",
   authenticate,
   validateRequest(listPaymentsQuerySchema),
-  paymentController.listMyPayments
+  paymentController.listMyPayments,
+);
+
+router.get(
+  "/verify/:sessionId",
+  authenticate,
+  paymentController.verifyPaymentSession,
 );
 
 export default router;

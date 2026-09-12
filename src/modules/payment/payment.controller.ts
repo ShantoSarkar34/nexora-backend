@@ -8,35 +8,35 @@ export const createCheckoutSession = catchAsync(
   async (req: Request, res: Response) => {
     const result = await paymentService.createCheckoutSession(
       getParam(req, "contractId"),
-      req.user!
+      req.user!,
     );
     sendResponse(res, 201, {
       success: true,
       message: "Checkout session created",
       data: result,
     });
-  }
+  },
 );
 
 export const getPaymentsForContract = catchAsync(
   async (req: Request, res: Response) => {
     const payments = await paymentService.getPaymentsForContract(
       getParam(req, "contractId"),
-      req.user!
+      req.user!,
     );
     sendResponse(res, 200, {
       success: true,
       message: "Payments fetched",
       data: payments,
     });
-  }
+  },
 );
 
 export const listMyPayments = catchAsync(
   async (req: Request, res: Response) => {
     const { payments, meta } = await paymentService.listMyPayments(
       req.user!.userId,
-      req.query as any
+      req.query as any,
     );
     sendResponse(res, 200, {
       success: true,
@@ -44,5 +44,19 @@ export const listMyPayments = catchAsync(
       data: payments,
       meta,
     });
-  }
+  },
+);
+
+export const verifyPaymentSession = catchAsync(
+  async (req: Request, res: Response) => {
+    const payment = await paymentService.syncPaymentFromStripeSession(
+      getParam(req, "sessionId"),
+      req.user!,
+    );
+    sendResponse(res, 200, {
+      success: true,
+      message: "Payment status synced",
+      data: payment,
+    });
+  },
 );
