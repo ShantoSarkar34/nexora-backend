@@ -20,7 +20,7 @@ const includePaymentDetails = {
 
 export const createCheckoutSession = async (
   contractId: string,
-  currentUser: JwtPayload
+  currentUser: JwtPayload,
 ) => {
   const contract = await prisma.contract.findUnique({
     where: { id: contractId },
@@ -31,7 +31,7 @@ export const createCheckoutSession = async (
   if (contract.status !== "PENDING") {
     throw new ApiError(
       400,
-      `Cannot pay for a contract with status ${contract.status}. Expected PENDING.`
+      `Cannot pay for a contract with status ${contract.status}. Expected PENDING.`,
     );
   }
 
@@ -81,7 +81,7 @@ export const createCheckoutSession = async (
 
 export const getPaymentsForContract = async (
   contractId: string,
-  currentUser: JwtPayload
+  currentUser: JwtPayload,
 ) => {
   const contract = await prisma.contract.findUnique({
     where: { id: contractId },
@@ -104,7 +104,7 @@ export const getPaymentsForContract = async (
 
 export const listMyPayments = async (
   payerId: string,
-  query: IPaymentListQuery
+  query: IPaymentListQuery,
 ) => {
   const { skip, take, page, limit } = getPagination(query);
   const where: Prisma.PaymentWhereInput = {
@@ -130,7 +130,7 @@ export const handleStripeWebhookEvent = async (event: Stripe.Event) => {
   const eventDedupeKey = `payment:webhook-event:${event.id}`;
   if (await redisService.exists(eventDedupeKey)) {
     console.log(
-      `[Stripe Webhook] Duplicate delivery of event ${event.id}, skipping`
+      `[Stripe Webhook] Duplicate delivery of event ${event.id}, skipping`,
     );
     return;
   }
@@ -145,13 +145,13 @@ export const handleStripeWebhookEvent = async (event: Stripe.Event) => {
 
       if (!payment) {
         console.error(
-          `[Stripe Webhook] No Payment row found for session ${session.id}`
+          `[Stripe Webhook] No Payment row found for session ${session.id}`,
         );
         return;
       }
       if (payment.status === "SUCCESS") {
         console.log(
-          `[Stripe Webhook] Payment ${payment.id} already SUCCESS, skipping`
+          `[Stripe Webhook] Payment ${payment.id} already SUCCESS, skipping`,
         );
         return;
       }
@@ -190,4 +190,44 @@ export const handleStripeWebhookEvent = async (event: Stripe.Event) => {
     default:
       console.log(`[Stripe Webhook] Unhandled event type: ${event.type}`);
   }
+};
+
+export const syncPaymentFromStripeSession = async (
+  sessionId: string,
+  currentUser: JwtPayload,
+) => {
+  const payment = await prisma.payment.findUnique({
+    where: { providerRef: sessionId },
+    include: includePaymentDetails,
+  });
+  if (!payment) throw new ApiError(404, "Payment not found for this session");
+
+  checkOwnership(payment.payerId, currentUser);
+
+  if (payment.status === "SUCCESS") {
+    return payment;
+  }
+
+  const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+  if (session.payment_status === "paid") {
+    const updated = await prisma.payment.update({
+      where: { providerRef: sessionId },
+      data: {
+        status: "SUCCESS",
+        metadata: session as unknown as Prisma.InputJsonValue,
+      },
+      include: includePaymentDetails,
+    });
+    const contract = await prisma.contract.findUnique({
+      where: { id: updated.contractId },
+    });
+    if (contract && contract.status === "PENDING") {
+      await activateContractSystem(updated.contractId);
+    }
+
+    return updated;
+  }
+
+  return payment;
 };
