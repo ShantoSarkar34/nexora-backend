@@ -30,6 +30,7 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().min(1, "GEMINI_API_KEY is required"),
   AI_DAILY_REQUEST_LIMIT: z.coerce.number().default(20),
   ADDITIONAL_ALLOWED_ORIGINS: z.string().optional(),
+  IMGBB_API_KEY: z.string().min(1, "IMGBB_API_KEY is required"),
 });
 
 const parsed = envSchema.safeParse(process.env);

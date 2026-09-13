@@ -5,7 +5,7 @@
     "target": "esnext",
     "module": "esnext",
     "moduleResolution": "bundler",
-    "types": ["node"],
+    "types": ["node","multer"],
     "strict": true,
     "sourceMap": true,
     "declaration": true,
