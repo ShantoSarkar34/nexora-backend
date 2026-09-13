@@ -20,6 +20,7 @@ import paymentRoutes from "./modules/payment/payment.routes";
 import aiMatchRoutes from "./modules/ai-match/ai-match.routes";
 import notificationRoutes from "./modules/notification/notification.routes";
 import { allowedOrigins, isVercelPreviewOrigin } from "./config/corsOrigins";
+import userRoutes from "./modules/user/user.routes";
 
 const app: Application = express();
 
@@ -28,7 +29,7 @@ app.use(
   cors({
     origin: env.FRONTEND_URL,
     credentials: true,
-  })
+  }),
 );
 app.use(cookieParser());
 app.use(express.json());
@@ -43,11 +44,13 @@ app.use(
         return callback(null, true);
       }
 
-      console.warn(`[CORS] Blocked request from unauthorized origin: ${origin}`);
+      console.warn(
+        `[CORS] Blocked request from unauthorized origin: ${origin}`,
+      );
       return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
-  })
+  }),
 );
 app.use(cookieParser());
 
@@ -59,7 +62,7 @@ app.get(
       success: true,
       message: "Nexora Server is running now!",
     });
-  })
+  }),
 );
 // Health check route
 app.get(
@@ -85,10 +88,11 @@ app.get(
         redisTtlSample: ttl,
       },
     });
-  })
+  }),
 );
 
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/users", userRoutes);
 
 app.use("/api/v1/profiles/freelancer", freelancerProfileRoutes);
 app.use("/api/v1/profiles/client", clientProfileRoutes);
@@ -105,7 +109,7 @@ app.use("/api/v1/reviews", reviewRoutes);
 app.use(
   "/api/v1/payments/webhook",
   express.raw({ type: "application/json" }),
-  paymentWebhookRoutes
+  paymentWebhookRoutes,
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

@@ -3,12 +3,13 @@ import { ZodError } from "zod";
 import ApiError from "../utils/ApiError";
 import { env } from "../config/env";
 import { Prisma } from "../../generated/prisma/client";
+import multer from "multer";
 
 const errorHandler = (
   err: unknown,
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   let statusCode = 500;
   let message = "Something went wrong";
@@ -43,6 +44,9 @@ const errorHandler = (
     statusCode = 400;
     message = "Invalid request data";
   } else if (err instanceof Error) {
+    message = err.message;
+  } else if (err instanceof multer.MulterError) {
+    statusCode = 400;
     message = err.message;
   }
 
