@@ -31,7 +31,7 @@ const calculateCompletion = (profile: any): number => {
 
 export const createFreelancerProfile = async (
   userId: string,
-  data: ICreateFreelancerProfile
+  data: ICreateFreelancerProfile,
 ) => {
   const existing = await prisma.freelancerProfile.findUnique({
     where: { userId },
@@ -53,7 +53,7 @@ export const getMyFreelancerProfile = async (userId: string) => {
 export const updateFreelancerProfile = async (
   userId: string,
   currentUser: JwtPayload,
-  data: IUpdateFreelancerProfile
+  data: IUpdateFreelancerProfile,
 ) => {
   const profile = await prisma.freelancerProfile.findUnique({
     where: { userId },
@@ -89,7 +89,7 @@ export const addSkill = async (userId: string, skillName: string) => {
 export const removeSkill = async (
   userId: string,
   skillId: string,
-  currentUser: JwtPayload
+  currentUser: JwtPayload,
 ) => {
   const profile = await prisma.freelancerProfile.findUnique({
     where: { userId },
@@ -115,7 +115,7 @@ export const addExperience = async (userId: string, data: IAddExperience) => {
 
 export const deleteExperience = async (
   experienceId: string,
-  currentUser: JwtPayload
+  currentUser: JwtPayload,
 ) => {
   const experience = await prisma.experience.findUnique({
     where: { id: experienceId },
@@ -138,7 +138,7 @@ export const addPortfolio = async (userId: string, data: IAddPortfolio) => {
 
 export const deletePortfolio = async (
   portfolioId: string,
-  currentUser: JwtPayload
+  currentUser: JwtPayload,
 ) => {
   const portfolio = await prisma.portfolio.findUnique({
     where: { id: portfolioId },
@@ -154,7 +154,7 @@ export const getPublicFreelancerProfile = async (userId: string) => {
     where: { userId },
     include: {
       ...includeFullProfile,
-      user: { select: { name: true, createdAt: true } },
+      user: { select: { name: true, createdAt: true, imageUrl: true } },
     },
   });
   if (!profile) throw new ApiError(404, "Freelancer profile not found");

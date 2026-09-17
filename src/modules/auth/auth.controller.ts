@@ -48,7 +48,7 @@ export const sendVerificationOtp = catchAsync(
       success: true,
       message: "Verification code sent to your email.",
     });
-  }
+  },
 );
 
 export const verifyOtp = catchAsync(async (req: Request, res: Response) => {
@@ -72,7 +72,7 @@ export const forgotPassword = catchAsync(
       message:
         "If an account with that email exists, a reset link has been sent.",
     });
-  }
+  },
 );
 
 export const resetPassword = catchAsync(async (req: Request, res: Response) => {
@@ -86,9 +86,21 @@ export const resetPassword = catchAsync(async (req: Request, res: Response) => {
 export const getMe = catchAsync(async (req: Request, res: Response) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user!.userId },
-    select: { id: true, name: true, email: true, role: true, isVerified: true, provider: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      isVerified: true,
+      provider: true,
+      imageUrl: true,
+    },
   });
-  sendResponse(res, 200, { success: true, message: "Current user fetched", data: user });
+  sendResponse(res, 200, {
+    success: true,
+    message: "Current user fetched",
+    data: user,
+  });
 });
 
 export const adminOnlyPing = catchAsync(async (req: Request, res: Response) => {

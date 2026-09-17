@@ -9,7 +9,7 @@ import {
 
 export const createClientProfile = async (
   userId: string,
-  data: ICreateClientProfile
+  data: ICreateClientProfile,
 ) => {
   const existing = await prisma.clientProfile.findUnique({ where: { userId } });
   if (existing) throw new ApiError(409, "Client profile already exists");
@@ -26,7 +26,7 @@ export const getMyClientProfile = async (userId: string) => {
 export const updateClientProfile = async (
   userId: string,
   currentUser: JwtPayload,
-  data: IUpdateClientProfile
+  data: IUpdateClientProfile,
 ) => {
   const profile = await prisma.clientProfile.findUnique({ where: { userId } });
   if (!profile) throw new ApiError(404, "Client profile not found");
@@ -37,7 +37,9 @@ export const updateClientProfile = async (
 export const getPublicClientProfile = async (userId: string) => {
   const profile = await prisma.clientProfile.findUnique({
     where: { userId },
-    include: { user: { select: { name: true, createdAt: true } } },
+    include: {
+      user: { select: { name: true, createdAt: true, imageUrl: true } },
+    },
   });
   if (!profile) throw new ApiError(404, "Client profile not found");
   return profile;
