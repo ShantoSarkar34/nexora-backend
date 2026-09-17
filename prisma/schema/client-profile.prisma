@@ -9,6 +9,11 @@ model ClientProfile {
     website     String?
     about       String?      @db.Text
 
+  location    String?
+  foundedYear Int?
+  linkedinUrl String?
+  twitterUrl  String?
+
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
