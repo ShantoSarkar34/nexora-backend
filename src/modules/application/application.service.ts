@@ -15,20 +15,31 @@ import {
 } from "./application.interface";
 import { ApplicationStatus, Prisma } from "../../../generated/prisma/client";
 import { notifyUser } from "../notification/notification.service";
-import { application } from "express";
 
 const includeApplicationDetails = {
-  job: { select: { id: true, title: true, status: true, clientId: true } },
+  job: {
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      clientId: true,
+      client: { select: { id: true, name: true, imageUrl: true } },
+    },
+  },
   freelancer: {
     select: {
       id: true,
       name: true,
+      imageUrl: true,
       freelancerProfile: { select: { title: true, hourlyRate: true } },
     },
   },
 };
 
-export const createApplication = async (freelancerId: string, data: ICreateApplication) => {
+export const createApplication = async (
+  freelancerId: string,
+  data: ICreateApplication,
+) => {
   const job = await getJobById(data.jobId);
 
   if (!isJobOpenForApplications(job.status)) {
@@ -66,7 +77,7 @@ export const createApplication = async (freelancerId: string, data: ICreateAppli
 
 export const getApplicationById = async (
   applicationId: string,
-  currentUser: JwtPayload
+  currentUser: JwtPayload,
 ) => {
   const application = await prisma.application.findUnique({
     where: { id: applicationId },
@@ -74,13 +85,12 @@ export const getApplicationById = async (
   });
   if (!application) throw new ApiError(404, "Application not found");
 
-  // Either the applicant or the job's client may view it — not just the applicant.
   const isFreelancerOwner = application.freelancerId === currentUser.userId;
   const isClientOwner = application.job.clientId === currentUser.userId;
   if (!isFreelancerOwner && !isClientOwner && currentUser.role !== "ADMIN") {
     throw new ApiError(
       403,
-      "You do not have permission to view this application"
+      "You do not have permission to view this application",
     );
   }
 
@@ -89,7 +99,7 @@ export const getApplicationById = async (
 
 export const listMyApplications = async (
   freelancerId: string,
-  query: IApplicationListQuery
+  query: IApplicationListQuery,
 ) => {
   const { skip, take, page, limit } = getPagination(query);
   const where: Prisma.ApplicationWhereInput = {
@@ -114,7 +124,7 @@ export const listMyApplications = async (
 export const listApplicationsForJob = async (
   jobId: string,
   currentUser: JwtPayload,
-  query: IApplicationListQuery
+  query: IApplicationListQuery,
 ) => {
   const job = await getJobById(jobId);
   checkOwnership(job.clientId, currentUser);
@@ -142,12 +152,12 @@ export const listApplicationsForJob = async (
 export const updateApplicationStatus = async (
   applicationId: string,
   currentUser: JwtPayload,
-  newStatus: ApplicationStatus
+  newStatus: ApplicationStatus,
 ) => {
   if (!CLIENT_ALLOWED_TARGET_STATUSES.includes(newStatus)) {
     throw new ApiError(
       400,
-      `Clients cannot set application status directly to ${newStatus}`
+      `Clients cannot set application status directly to ${newStatus}`,
     );
   }
 
@@ -162,9 +172,15 @@ export const updateApplicationStatus = async (
   if (!allowedNext.includes(newStatus)) {
     throw new ApiError(
       400,
-      `Cannot change status from ${application.status} to ${newStatus}`
+      `Cannot change status from ${application.status} to ${newStatus}`,
     );
   }
+
+  const updated = await prisma.application.update({
+    where: { id: applicationId },
+    data: { status: newStatus },
+    include: includeApplicationDetails,
+  });
 
   if (newStatus === "SHORTLISTED" || newStatus === "REJECTED") {
     await notifyUser({
@@ -177,23 +193,17 @@ export const updateApplicationStatus = async (
         newStatus === "SHORTLISTED"
           ? "You've been shortlisted!"
           : "Application update",
-      message: `Your application for "${
-        application.job.title ?? "a job"
-      }" was ${newStatus.toLowerCase()}`,
+      message: `Your application for "${application.job.title}" was ${newStatus.toLowerCase()}`,
       link: `/applications/${applicationId}`,
     });
   }
 
-  return prisma.application.update({
-    where: { id: applicationId },
-    data: { status: newStatus },
-    include: includeApplicationDetails,
-  });
+  return updated;
 };
 
 export const withdrawApplication = async (
   applicationId: string,
-  currentUser: JwtPayload
+  currentUser: JwtPayload,
 ) => {
   const application = await prisma.application.findUnique({
     where: { id: applicationId },
@@ -204,7 +214,7 @@ export const withdrawApplication = async (
   if (!WITHDRAWABLE_STATUSES.includes(application.status)) {
     throw new ApiError(
       400,
-      `Cannot withdraw an application with status ${application.status}`
+      `Cannot withdraw an application with status ${application.status}`,
     );
   }
 
@@ -224,7 +234,7 @@ export const markApplicationAsHired = async (applicationId: string) => {
   if (!allowedNext.includes("HIRED")) {
     throw new ApiError(
       400,
-      `Cannot hire from application status ${application.status}`
+      `Cannot hire from application status ${application.status}`,
     );
   }
 

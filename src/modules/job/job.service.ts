@@ -15,10 +15,12 @@ const includeJobDetails = {
     select: {
       id: true,
       name: true,
+      imageUrl: true,
       clientProfile: { select: { companyName: true } },
     },
   },
 };
+
 const JOB_LIST_CACHE_TTL = 60;
 
 const getJobListCacheKey = async (query: IJobListQuery): Promise<string> => {
@@ -34,10 +36,10 @@ const invalidateJobListCache = async (): Promise<void> => {
 export const createJob = async (clientId: string, data: ICreateJob) => {
   const { skills, ...jobData } = data;
   const skillRecords = await Promise.all(
-    skills.map((name) => findOrCreateSkill(name))
+    skills.map((name) => findOrCreateSkill(name)),
   );
-  await invalidateJobListCache();
-  return prisma.job.create({
+
+  const job = await prisma.job.create({
     data: {
       ...jobData,
       clientId,
@@ -46,12 +48,15 @@ export const createJob = async (clientId: string, data: ICreateJob) => {
     },
     include: includeJobDetails,
   });
+
+  await invalidateJobListCache();
+  return job;
 };
 
 export const updateJob = async (
   jobId: string,
   currentUser: JwtPayload,
-  data: IUpdateJob
+  data: IUpdateJob,
 ) => {
   const job = await prisma.job.findUnique({ where: { id: jobId } });
   if (!job) throw new ApiError(404, "Job not found");
@@ -65,25 +70,27 @@ export const updateJob = async (
 
   if (skills) {
     const skillRecords = await Promise.all(
-      skills.map((name) => findOrCreateSkill(name))
+      skills.map((name) => findOrCreateSkill(name)),
     );
     await prisma.jobSkill.deleteMany({ where: { jobId } });
     await prisma.jobSkill.createMany({
       data: skillRecords.map((skill) => ({ jobId, skillId: skill.id })),
     });
   }
-  await invalidateJobListCache();
-  return prisma.job.update({
+
+  const updated = await prisma.job.update({
     where: { id: jobId },
     data: jobData,
     include: includeJobDetails,
   });
+  await invalidateJobListCache();
+  return updated;
 };
 
 export const updateJobStatus = async (
   jobId: string,
   currentUser: JwtPayload,
-  newStatus: JobStatus
+  newStatus: JobStatus,
 ) => {
   const job = await prisma.job.findUnique({ where: { id: jobId } });
   if (!job) throw new ApiError(404, "Job not found");
@@ -93,14 +100,16 @@ export const updateJobStatus = async (
   if (!allowedNext.includes(newStatus)) {
     throw new ApiError(
       400,
-      `Cannot change status from ${job.status} to ${newStatus}`
+      `Cannot change status from ${job.status} to ${newStatus}`,
     );
   }
-  await invalidateJobListCache();
-  return prisma.job.update({
+
+  const updated = await prisma.job.update({
     where: { id: jobId },
     data: { status: newStatus },
   });
+  await invalidateJobListCache();
+  return updated;
 };
 
 export const deleteJob = async (jobId: string, currentUser: JwtPayload) => {
@@ -111,7 +120,7 @@ export const deleteJob = async (jobId: string, currentUser: JwtPayload) => {
   if (job.status !== "DRAFT") {
     throw new ApiError(
       400,
-      "Only draft jobs can be deleted. Cancel published jobs instead."
+      "Only draft jobs can be deleted. Cancel published jobs instead.",
     );
   }
 
@@ -160,8 +169,8 @@ export const listJobs = async (query: IJobListQuery) => {
     query.sortBy === "budget_asc"
       ? { budgetMin: "asc" }
       : query.sortBy === "budget_desc"
-      ? { budgetMax: "desc" }
-      : { createdAt: "desc" };
+        ? { budgetMax: "desc" }
+        : { createdAt: "desc" };
 
   const [jobs, total] = await Promise.all([
     prisma.job.findMany({
@@ -181,7 +190,7 @@ export const listJobs = async (query: IJobListQuery) => {
 
 export const listMyJobs = async (
   clientId: string,
-  query: IJobListQuery & { status?: JobStatus }
+  query: IJobListQuery & { status?: JobStatus },
 ) => {
   const { skip, take, page, limit } = getPagination(query);
   const where: Prisma.JobWhereInput = {

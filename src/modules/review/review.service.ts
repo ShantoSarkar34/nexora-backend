@@ -2,11 +2,11 @@ import prisma from "../../config/prismaClient";
 import ApiError from "../../utils/ApiError";
 import { JwtPayload } from "../../utils/jwt";
 import { getPagination, buildMeta } from "../../utils/pagination";
-import { notifyUser } from "../notification/notification.service";
 import { ICreateReview, IReviewListQuery } from "./review.interface";
+import { notifyUser } from "../notification/notification.service";
 
 const includeReviewDetails = {
-  reviewer: { select: { id: true, name: true } },
+  reviewer: { select: { id: true, name: true, imageUrl: true } },
   contract: {
     select: { id: true, jobId: true, job: { select: { title: true } } },
   },
@@ -15,7 +15,7 @@ const includeReviewDetails = {
 export const createReview = async (
   contractId: string,
   currentUser: JwtPayload,
-  data: ICreateReview
+  data: ICreateReview,
 ) => {
   const contract = await prisma.contract.findUnique({
     where: { id: contractId },
@@ -68,7 +68,7 @@ export const createReview = async (
 
 export const getReviewsForContract = async (
   contractId: string,
-  currentUser: JwtPayload
+  currentUser: JwtPayload,
 ) => {
   const contract = await prisma.contract.findUnique({
     where: { id: contractId },
@@ -90,7 +90,7 @@ export const getReviewsForContract = async (
 
 export const listReviewsForUser = async (
   userId: string,
-  query: IReviewListQuery
+  query: IReviewListQuery,
 ) => {
   const { skip, take, page, limit } = getPagination(query);
 
