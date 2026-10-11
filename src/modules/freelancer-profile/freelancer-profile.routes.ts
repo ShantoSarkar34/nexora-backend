@@ -13,64 +13,66 @@ import {
 
 const router = Router();
 
+router.get("/", freelancerProfileController.listFreelancers);
+
 router.post(
   "/",
   authenticate,
   authorize("FREELANCER"),
   validateRequest(createFreelancerProfileSchema),
-  freelancerProfileController.createFreelancerProfile
+  freelancerProfileController.createFreelancerProfile,
 );
 router.get(
   "/me",
   authenticate,
   authorize("FREELANCER"),
-  freelancerProfileController.getMyFreelancerProfile
+  freelancerProfileController.getMyFreelancerProfile,
 );
 router.patch(
   "/me",
   authenticate,
   authorize("FREELANCER"),
   validateRequest(updateFreelancerProfileSchema),
-  freelancerProfileController.updateFreelancerProfile
+  freelancerProfileController.updateFreelancerProfile,
 );
 router.post(
   "/skills",
   authenticate,
   authorize("FREELANCER"),
   validateRequest(addSkillSchema),
-  freelancerProfileController.addSkill
+  freelancerProfileController.addSkill,
 );
 router.delete(
   "/skills/:skillId",
   authenticate,
   authorize("FREELANCER"),
-  freelancerProfileController.removeSkill
+  freelancerProfileController.removeSkill,
 );
 router.post(
   "/experience",
   authenticate,
   authorize("FREELANCER"),
   validateRequest(experienceSchema),
-  freelancerProfileController.addExperience
+  freelancerProfileController.addExperience,
 );
 router.delete(
   "/experience/:experienceId",
   authenticate,
   authorize("FREELANCER"),
-  freelancerProfileController.deleteExperience
+  freelancerProfileController.deleteExperience,
 );
 router.post(
   "/portfolio",
   authenticate,
   authorize("FREELANCER"),
   validateRequest(portfolioSchema),
-  freelancerProfileController.addPortfolio
+  freelancerProfileController.addPortfolio,
 );
 router.delete(
   "/portfolio/:portfolioId",
   authenticate,
   authorize("FREELANCER"),
-  freelancerProfileController.deletePortfolio
+  freelancerProfileController.deletePortfolio,
 );
 router.get("/:userId", freelancerProfileController.getPublicFreelancerProfile);
 
