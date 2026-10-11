@@ -9,6 +9,7 @@ import {
   IAddExperience,
   IAddPortfolio,
 } from "./freelancer-profile.interface";
+import { getPagination, buildMeta } from "../../utils/pagination";
 
 const includeFullProfile = {
   skills: { include: { skill: true } },
@@ -159,4 +160,53 @@ export const getPublicFreelancerProfile = async (userId: string) => {
   });
   if (!profile) throw new ApiError(404, "Freelancer profile not found");
   return profile;
+};
+
+export const listFreelancers = async (query: {
+  page?: string;
+  limit?: string;
+}) => {
+  const { skip, take, page, limit } = getPagination(query);
+
+  const where = {
+    title: { not: "" },
+  };
+
+  const [freelancers, total] = await Promise.all([
+    prisma.freelancerProfile.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip,
+      take,
+      select: {
+        id: true,
+        userId: true,
+        title: true,
+        bio: true,
+        hourlyRate: true,
+        skills: {
+          include: {
+            skill: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+        user: {
+          select: {
+            name: true,
+            imageUrl: true,
+          },
+        },
+      },
+    }),
+    prisma.freelancerProfile.count({ where }),
+  ]);
+
+  return {
+    freelancers,
+    meta: buildMeta(total, page, limit),
+  };
 };
