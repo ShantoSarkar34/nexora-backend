@@ -14,7 +14,7 @@ declare global {
 }
 
 export const authenticate = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, _res: Response, next: NextFunction) => {
     const token = req.cookies?.accessToken;
     if (!token) {
       throw new ApiError(401, "You are not logged in");
@@ -26,19 +26,17 @@ export const authenticate = catchAsync(
     } catch {
       throw new ApiError(
         401,
-        "Session expired or invalid, please log in again"
+        "Session expired or invalid, please log in again",
       );
     }
 
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
     });
-    if (!user) {
+    if (!user || user.deletedAt) {
       throw new ApiError(401, "User no longer exists");
     }
 
-    // If the password changed after this token was issued, the token is
-    // stale even though it hasn't technically expired — reject it.
     if (
       user.passwordChangedAt &&
       payload.iat &&
@@ -46,11 +44,11 @@ export const authenticate = catchAsync(
     ) {
       throw new ApiError(
         401,
-        "Password was recently changed, please log in again"
+        "Password was recently changed, please log in again",
       );
     }
 
     req.user = payload;
     next();
-  }
+  },
 );

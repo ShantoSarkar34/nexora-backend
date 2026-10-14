@@ -1,6 +1,8 @@
-// src/middleware/rateLimiters.ts
 import { rateLimiter } from "./rateLimiter";
 import { Request } from "express";
+
+const byUserId = (req: Request): string =>
+  req.user?.userId ?? req.ip ?? "unknown";
 
 export const loginRateLimiter = rateLimiter({
   windowSeconds: 15 * 60,
@@ -24,5 +26,19 @@ export const otpRateLimiter = rateLimiter({
   windowSeconds: 60 * 60,
   maxRequests: 5,
   keyPrefix: "send-otp",
-  keyGenerator: (req: Request) => req.user?.userId ?? req.ip ?? "unknown",
+  keyGenerator: byUserId,
+});
+
+export const changePasswordRateLimiter = rateLimiter({
+  windowSeconds: 15 * 60,
+  maxRequests: 5,
+  keyPrefix: "change-password",
+  keyGenerator: byUserId,
+});
+
+export const deleteAccountRateLimiter = rateLimiter({
+  windowSeconds: 15 * 60,
+  maxRequests: 5,
+  keyPrefix: "delete-account",
+  keyGenerator: byUserId,
 });

@@ -1,16 +1,11 @@
+// src/modules/auth/auth.controller.ts
 import { Request, Response } from "express";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
 import * as authService from "./auth.service";
-import { env } from "../../config/env";
 import prisma from "../../config/prismaClient";
-
-const cookieOptions = {
-  httpOnly: true,
-  secure: env.NODE_ENV === "production",
-  sameSite: (env.NODE_ENV === "production" ? "none" : "lax") as "none" | "lax",
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-};
+import { authCookieOptions } from "../../config/cookieOptions";
+import { CURRENT_USER_SELECT } from "../user/user.constants";
 
 export const register = catchAsync(async (req: Request, res: Response) => {
   const user = await authService.registerUser(req.body);
@@ -23,7 +18,7 @@ export const register = catchAsync(async (req: Request, res: Response) => {
 
 export const login = catchAsync(async (req: Request, res: Response) => {
   const { token, user } = await authService.loginUser(req.body);
-  res.cookie("accessToken", token, cookieOptions);
+  res.cookie("accessToken", token, authCookieOptions);
   sendResponse(res, 200, {
     success: true,
     message: "Login successful",
@@ -33,7 +28,7 @@ export const login = catchAsync(async (req: Request, res: Response) => {
 
 export const googleAuth = catchAsync(async (req: Request, res: Response) => {
   const { token, user } = await authService.googleAuth(req.body);
-  res.cookie("accessToken", token, cookieOptions);
+  res.cookie("accessToken", token, authCookieOptions);
   sendResponse(res, 200, {
     success: true,
     message: "Google authentication successful",
@@ -60,7 +55,7 @@ export const verifyOtp = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const logout = catchAsync(async (req: Request, res: Response) => {
-  res.clearCookie("accessToken", { ...cookieOptions, maxAge: undefined });
+  res.clearCookie("accessToken", { ...authCookieOptions, maxAge: undefined });
   sendResponse(res, 200, { success: true, message: "Logged out successfully" });
 });
 
@@ -83,18 +78,21 @@ export const resetPassword = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+export const changePassword = catchAsync(
+  async (req: Request, res: Response) => {
+    const token = await authService.changePassword(req.user!.userId, req.body);
+    res.cookie("accessToken", token, authCookieOptions);
+    sendResponse(res, 200, {
+      success: true,
+      message: "Password changed successfully",
+    });
+  },
+);
+
 export const getMe = catchAsync(async (req: Request, res: Response) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user!.userId },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      isVerified: true,
-      provider: true,
-      imageUrl: true,
-    },
+    select: CURRENT_USER_SELECT,
   });
   sendResponse(res, 200, {
     success: true,

@@ -1,3 +1,4 @@
+// src/modules/auth/auth.routes.ts
 import { Router } from "express";
 import * as authController from "./auth.controller";
 import validateRequest from "../../middleware/validateRequest";
@@ -8,14 +9,16 @@ import {
   googleAuthSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  changePasswordSchema,
 } from "./auth.validation";
 import { authenticate } from "../../middleware/auth.middleware";
 import { authorize } from "../../middleware/authorize";
 import {
-  forgotPasswordRateLimiter,
   loginRateLimiter,
-  otpRateLimiter,
   registerRateLimiter,
+  forgotPasswordRateLimiter,
+  otpRateLimiter,
+  changePasswordRateLimiter,
 } from "../../middleware/rateLimiters";
 
 const router = Router();
@@ -24,41 +27,54 @@ router.post(
   "/register",
   registerRateLimiter,
   validateRequest(registerSchema),
-  authController.register
+  authController.register,
 );
 router.post(
   "/login",
   loginRateLimiter,
   validateRequest(loginSchema),
-  authController.login
+  authController.login,
 );
+router.post(
+  "/google",
+  validateRequest(googleAuthSchema),
+  authController.googleAuth,
+);
+router.post("/logout", authenticate, authController.logout);
+
 router.post(
   "/send-verification-otp",
   authenticate,
   otpRateLimiter,
-  authController.sendVerificationOtp
+  authController.sendVerificationOtp,
 );
 
 router.post(
   "/verify-otp",
   authenticate,
   validateRequest(verifyOtpSchema),
-  authController.verifyOtp
+  authController.verifyOtp,
 );
-
-router.post("/logout", authenticate, authController.logout);
 
 router.post(
   "/forgot-password",
   forgotPasswordRateLimiter,
   validateRequest(forgotPasswordSchema),
-  authController.forgotPassword
+  authController.forgotPassword,
 );
 
 router.post(
   "/reset-password",
   validateRequest(resetPasswordSchema),
-  authController.resetPassword
+  authController.resetPassword,
+);
+
+router.post(
+  "/change-password",
+  authenticate,
+  changePasswordRateLimiter,
+  validateRequest(changePasswordSchema),
+  authController.changePassword,
 );
 
 router.get("/me", authenticate, authController.getMe);
@@ -66,7 +82,7 @@ router.get(
   "/admin-only",
   authenticate,
   authorize("ADMIN"),
-  authController.adminOnlyPing
+  authController.adminOnlyPing,
 );
 
 export default router;
