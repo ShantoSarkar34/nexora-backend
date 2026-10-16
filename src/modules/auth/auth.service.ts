@@ -11,6 +11,7 @@ import {
 } from "../../utils/sendEmail";
 import { googleClient } from "../../config/googleClient";
 import { env } from "../../config/env";
+import { User } from "../../../generated/prisma";
 import { REDIS_KEYS, TTL } from "./auth.constants";
 
 interface RegisterInput {
@@ -19,6 +20,18 @@ interface RegisterInput {
   password: string;
   role: "CLIENT" | "FREELANCER";
 }
+
+// Same shape as GET /auth/me, so the frontend can treat every auth response alike.
+const toCurrentUser = (user: User) => ({
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  isVerified: user.isVerified,
+  provider: user.provider,
+  imageUrl: user.imageUrl,
+  createdAt: user.createdAt,
+});
 
 export const registerUser = async (input: RegisterInput) => {
   const existingUser = await prisma.user.findUnique({
@@ -39,13 +52,7 @@ export const registerUser = async (input: RegisterInput) => {
     },
   });
 
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    isVerified: user.isVerified,
-  };
+  return toCurrentUser(user);
 };
 
 export const loginUser = async ({
@@ -72,16 +79,7 @@ export const loginUser = async ({
   }
 
   const token = signJwt({ userId: user.id, role: user.role });
-  return {
-    token,
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      isVerified: user.isVerified,
-    },
-  };
+  return { token, user: toCurrentUser(user) };
 };
 
 export const changePassword = async (
@@ -226,16 +224,7 @@ export const googleAuth = async ({
   }
 
   const token = signJwt({ userId: user.id, role: user.role });
-  return {
-    token,
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      isVerified: user.isVerified,
-    },
-  };
+  return { token, user: toCurrentUser(user) };
 };
 
 export const forgotPassword = async (email: string) => {
