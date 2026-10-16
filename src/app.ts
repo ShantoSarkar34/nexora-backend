@@ -21,8 +21,12 @@ import aiMatchRoutes from "./modules/ai-match/ai-match.routes";
 import notificationRoutes from "./modules/notification/notification.routes";
 import { allowedOrigins, isVercelPreviewOrigin } from "./config/corsOrigins";
 import userRoutes from "./modules/user/user.routes";
+import { decimalReplacer } from "./utils/jsonReplacer";
 
 const app: Application = express();
+
+app.set("trust proxy", 1);
+app.set("json replacer", decimalReplacer);
 
 // Core middleware
 app.use(
@@ -53,6 +57,9 @@ app.use(
   }),
 );
 app.use(cookieParser());
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // main route
 app.get(
@@ -111,8 +118,6 @@ app.use(
   express.raw({ type: "application/json" }),
   paymentWebhookRoutes,
 );
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 // health route, existing route mounts
 app.use("/api/v1/payments", paymentRoutes);
 
