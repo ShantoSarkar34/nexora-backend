@@ -17,7 +17,7 @@ export const updateJob = catchAsync(async (req: Request, res: Response) => {
   const job = await jobService.updateJob(
     getParam(req, "jobId"),
     req.user!,
-    req.body
+    req.body,
   );
   sendResponse(res, 200, { success: true, message: "Job updated", data: job });
 });
@@ -27,14 +27,14 @@ export const updateJobStatus = catchAsync(
     const job = await jobService.updateJobStatus(
       getParam(req, "jobId"),
       req.user!,
-      req.body.status
+      req.body.status,
     );
     sendResponse(res, 200, {
       success: true,
       message: "Job status updated",
       data: job,
     });
-  }
+  },
 );
 
 export const deleteJob = catchAsync(async (req: Request, res: Response) => {
@@ -43,12 +43,12 @@ export const deleteJob = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const getJobById = catchAsync(async (req: Request, res: Response) => {
-  const job = await jobService.getJobById(getParam(req, "jobId"));
+  const job = await jobService.getJobById(getParam(req, "jobId"), req.user);
   sendResponse(res, 200, { success: true, message: "Job fetched", data: job });
 });
 
 export const listJobs = catchAsync(async (req: Request, res: Response) => {
-  const { jobs, meta } = await jobService.listJobs(req.query as any);
+  const { jobs, meta } = await jobService.listJobs(req.query as any, req.user);
   sendResponse(res, 200, {
     success: true,
     message: "Jobs fetched",
@@ -60,7 +60,7 @@ export const listJobs = catchAsync(async (req: Request, res: Response) => {
 export const listMyJobs = catchAsync(async (req: Request, res: Response) => {
   const { jobs, meta } = await jobService.listMyJobs(
     req.user!.userId,
-    req.query as any
+    req.query as any,
   );
   sendResponse(res, 200, {
     success: true,
@@ -73,7 +73,7 @@ export const listMyJobs = catchAsync(async (req: Request, res: Response) => {
 export const saveJob = catchAsync(async (req: Request, res: Response) => {
   const saved = await jobService.saveJob(
     req.user!.userId,
-    getParam(req, "jobId")
+    getParam(req, "jobId"),
   );
   sendResponse(res, 201, { success: true, message: "Job saved", data: saved });
 });
@@ -87,14 +87,14 @@ export const unsaveJob = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const listSavedJobs = catchAsync(async (req: Request, res: Response) => {
-  const { savedJobs, meta } = await jobService.listSavedJobs(
+  const { jobs, meta } = await jobService.listSavedJobs(
     req.user!.userId,
-    req.query as any
+    req.query as any,
   );
   sendResponse(res, 200, {
     success: true,
     message: "Saved jobs fetched",
-    data: savedJobs,
+    data: jobs,
     meta,
   });
 });

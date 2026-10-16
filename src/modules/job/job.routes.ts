@@ -1,6 +1,7 @@
 import { Router } from "express";
 import * as jobController from "./job.controller";
 import { authenticate } from "../../middleware/auth.middleware";
+import { optionalAuthenticate } from "../../middleware/optionalAuth.middleware";
 import { authorize } from "../../middleware/authorize";
 import validateRequest from "../../middleware/validateRequest";
 import {
@@ -12,65 +13,70 @@ import {
 
 const router = Router();
 
-// Public listing
-router.get("/", validateRequest(listJobsQuerySchema), jobController.listJobs);
+// Public listing (optional login adds isSaved/hasApplied for freelancers)
+router.get(
+  "/",
+  optionalAuthenticate,
+  validateRequest(listJobsQuerySchema),
+  jobController.listJobs,
+);
 
-// Freelancer — saved jobs (must come before the generic "/:jobId" route below)
+// Freelancer: saved jobs (must come before "/:jobId")
 router.get(
   "/saved/me",
   authenticate,
   authorize("FREELANCER"),
-  jobController.listSavedJobs
+  jobController.listSavedJobs,
 );
 router.post(
   "/:jobId/save",
   authenticate,
   authorize("FREELANCER"),
-  jobController.saveJob
+  jobController.saveJob,
 );
 router.delete(
   "/:jobId/save",
   authenticate,
   authorize("FREELANCER"),
-  jobController.unsaveJob
+  jobController.unsaveJob,
 );
 
-// Client — private
+// Client: private
 router.post(
   "/",
   authenticate,
   authorize("CLIENT"),
   validateRequest(createJobSchema),
-  jobController.createJob
+  jobController.createJob,
 );
 router.get(
   "/client/me",
   authenticate,
   authorize("CLIENT"),
-  jobController.listMyJobs
+  jobController.listMyJobs,
 );
 router.patch(
   "/:jobId",
   authenticate,
   authorize("CLIENT"),
   validateRequest(updateJobSchema),
-  jobController.updateJob
+  jobController.updateJob,
 );
 router.patch(
   "/:jobId/status",
   authenticate,
   authorize("CLIENT"),
   validateRequest(updateJobStatusSchema),
-  jobController.updateJobStatus
+  jobController.updateJobStatus,
 );
 router.delete(
   "/:jobId",
   authenticate,
   authorize("CLIENT"),
-  jobController.deleteJob
+  jobController.deleteJob,
 );
 
-// Public — job details (must come after the more specific routes above)
-router.get("/:jobId", jobController.getJobById);
+// Public: job details (must come after the more specific routes above)
+router.get("/:jobId", optionalAuthenticate, jobController.getJobById);
 
 export default router;
