@@ -1,4 +1,4 @@
-import { NotificationType } from "../../../generated/prisma/client";
+import { NotificationType, NotificationEntityType } from "../../../generated/prisma";
 
 export interface INotifyPayload {
   userId: string;
@@ -6,6 +6,9 @@ export interface INotifyPayload {
   title: string;
   message: string;
   link?: string;
+  entityType?: NotificationEntityType;
+  entityId?: string;
+  meta?: Record<string, string>;
 }
 
 export interface INotificationListQuery {

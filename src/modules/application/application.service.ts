@@ -13,7 +13,7 @@ import {
   ICreateApplication,
   IApplicationListQuery,
 } from "./application.interface";
-import { ApplicationStatus, Prisma } from "../../../generated/prisma/client";
+import { ApplicationStatus, Prisma } from "../../../generated/prisma";
 import { notifyUser } from "../notification/notification.service";
 
 const includeApplicationDetails = {
@@ -70,6 +70,9 @@ export const createApplication = async (
     title: "New application received",
     message: `A freelancer applied to your job "${job.title}"`,
     link: `/jobs/${job.id}/applications`,
+    entityType: "APPLICATION",
+    entityId: application.id,
+    meta: { jobId: job.id },
   });
 
   return application;
@@ -195,6 +198,9 @@ export const updateApplicationStatus = async (
           : "Application update",
       message: `Your application for "${application.job.title}" was ${newStatus.toLowerCase()}`,
       link: `/applications/${applicationId}`,
+      entityType: "APPLICATION",
+      entityId: applicationId,
+      meta: { jobId: application.jobId },
     });
   }
 

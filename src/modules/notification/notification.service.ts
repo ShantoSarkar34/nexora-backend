@@ -8,21 +8,31 @@ import {
   INotificationListQuery,
 } from "./notification.interface";
 
-
 export const notifyUser = async (payload: INotifyPayload): Promise<void> => {
   try {
-    await prisma.notification.create({ data: payload });
+    await prisma.notification.create({
+      data: {
+        userId: payload.userId,
+        type: payload.type,
+        title: payload.title,
+        message: payload.message,
+        link: payload.link,
+        entityType: payload.entityType,
+        entityId: payload.entityId,
+        meta: payload.meta,
+      },
+    });
   } catch (error) {
     console.error(
       `[Notification] Failed to create notification for user ${payload.userId}:`,
-      error
+      error,
     );
   }
 };
 
 export const getMyNotifications = async (
   userId: string,
-  query: INotificationListQuery
+  query: INotificationListQuery,
 ) => {
   const { skip, take, page, limit } = getPagination(query);
   const where = {
@@ -52,7 +62,7 @@ export const getUnreadCount = async (userId: string) => {
 
 export const markAsRead = async (
   notificationId: string,
-  currentUser: JwtPayload
+  currentUser: JwtPayload,
 ) => {
   const notification = await prisma.notification.findUnique({
     where: { id: notificationId },

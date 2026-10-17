@@ -9,18 +9,38 @@ import {
 } from "./contract.constants";
 import { ISubmitWork, IContractListQuery } from "./contract.interface";
 import { APPLICATION_STATUS_TRANSITIONS } from "../application/application.constants";
-import { Prisma } from "../../../generated/prisma/client";
+import { Prisma } from "../../../generated/prisma";
 import { notifyUser } from "../notification/notification.service";
 
 const includeContractDetails = {
-  job: { select: { id: true, title: true, status: true } },
-  client: { select: { id: true, name: true } },
-  freelancer: { select: { id: true, name: true } },
+  job: { select: { id: true, title: true, status: true, budgetType: true } },
+  client: { select: { id: true, name: true, imageUrl: true } },
+  freelancer: { select: { id: true, name: true, imageUrl: true } },
+  // Only the latest payment attempt is needed to compute paymentStatus.
+  payments: {
+    orderBy: { createdAt: "desc" },
+    take: 1,
+    select: { status: true },
+  },
+} satisfies Prisma.ContractInclude;
+
+type ContractWithDetails = Prisma.ContractGetPayload<{
+  include: typeof includeContractDetails;
+}>;
+
+// The one contract shape returned by every contract endpoint.
+const toContractResponse = (contract: ContractWithDetails) => {
+  const { payments, ...rest } = contract;
+  return {
+    ...rest,
+    agreedBudget: Number(contract.agreedBudget),
+    paymentStatus: payments[0]?.status ?? null,
+  };
 };
 
 export const hireFreelancer = async (
   applicationId: string,
-  currentUser: JwtPayload
+  currentUser: JwtPayload,
 ) => {
   const application = await prisma.application.findUnique({
     where: { id: applicationId },
@@ -33,7 +53,7 @@ export const hireFreelancer = async (
   if (application.job.status !== "OPEN") {
     throw new ApiError(
       400,
-      `Cannot hire — job status is ${application.job.status}, expected OPEN`
+      `Cannot hire — job status is ${application.job.status}, expected OPEN`,
     );
   }
 
@@ -41,7 +61,7 @@ export const hireFreelancer = async (
   if (!allowedNext.includes("HIRED")) {
     throw new ApiError(
       400,
-      `Cannot hire from application status ${application.status}`
+      `Cannot hire from application status ${application.status}`,
     );
   }
 
@@ -91,14 +111,17 @@ export const hireFreelancer = async (
     title: "You've been hired!",
     message: `You were hired for "${contract.job.title}". Waiting for payment to activate the contract.`,
     link: `/contracts/${contract.id}`,
+    entityType: "CONTRACT",
+    entityId: contract.id,
+    meta: { jobId: contract.jobId },
   });
 
-  return contract;
+  return toContractResponse(contract);
 };
 
 const assertParticipant = (
   contract: { clientId: string; freelancerId: string },
-  currentUser: JwtPayload
+  currentUser: JwtPayload,
 ) => {
   const isParticipant =
     contract.clientId === currentUser.userId ||
@@ -110,7 +133,7 @@ const assertParticipant = (
 
 export const getContractById = async (
   contractId: string,
-  currentUser: JwtPayload
+  currentUser: JwtPayload,
 ) => {
   const contract = await prisma.contract.findUnique({
     where: { id: contractId },
@@ -118,12 +141,12 @@ export const getContractById = async (
   });
   if (!contract) throw new ApiError(404, "Contract not found");
   assertParticipant(contract, currentUser);
-  return contract;
+  return toContractResponse(contract);
 };
 
 export const listMyContracts = async (
   currentUser: JwtPayload,
-  query: IContractListQuery
+  query: IContractListQuery,
 ) => {
   const { skip, take, page, limit } = getPagination(query);
   const roleField = currentUser.role === "CLIENT" ? "clientId" : "freelancerId";
@@ -144,7 +167,10 @@ export const listMyContracts = async (
     prisma.contract.count({ where }),
   ]);
 
-  return { contracts, meta: buildMeta(total, page, limit) };
+  return {
+    contracts: contracts.map(toContractResponse),
+    meta: buildMeta(total, page, limit),
+  };
 };
 
 const transitionContract = async (
@@ -152,7 +178,7 @@ const transitionContract = async (
   currentUser: JwtPayload,
   targetStatus: "ACTIVE" | "SUBMITTED" | "COMPLETED",
   ownerField: "clientId" | "freelancerId",
-  extraData: Prisma.ContractUpdateInput = {}
+  extraData: Prisma.ContractUpdateInput = {},
 ) => {
   const contract = await prisma.contract.findUnique({
     where: { id: contractId },
@@ -164,15 +190,17 @@ const transitionContract = async (
   if (!allowedNext.includes(targetStatus)) {
     throw new ApiError(
       400,
-      `Cannot change contract status from ${contract.status} to ${targetStatus}`
+      `Cannot change contract status from ${contract.status} to ${targetStatus}`,
     );
   }
 
-  return prisma.contract.update({
+  const updated = await prisma.contract.update({
     where: { id: contractId },
     data: { status: targetStatus, ...extraData },
     include: includeContractDetails,
   });
+
+  return toContractResponse(updated);
 };
 
 export const activateContract = (contractId: string, currentUser: JwtPayload) =>
@@ -181,7 +209,7 @@ export const activateContract = (contractId: string, currentUser: JwtPayload) =>
 export const submitWork = async (
   contractId: string,
   currentUser: JwtPayload,
-  data: ISubmitWork
+  data: ISubmitWork,
 ) => {
   const updated = await transitionContract(
     contractId,
@@ -192,7 +220,7 @@ export const submitWork = async (
       submissionNote: data.submissionNote,
       submissionUrl: data.submissionUrl,
       submittedAt: new Date(),
-    }
+    },
   );
 
   await notifyUser({
@@ -201,6 +229,9 @@ export const submitWork = async (
     title: "Work submitted for review",
     message: `Work has been submitted on your contract for "${updated.job.title}"`,
     link: `/contracts/${contractId}`,
+    entityType: "CONTRACT",
+    entityId: contractId,
+    meta: { jobId: updated.jobId },
   });
 
   return updated;
@@ -213,10 +244,9 @@ export const requestRevision = (contractId: string, currentUser: JwtPayload) =>
     submittedAt: null,
   });
 
-/** Client approves submitted work — completes both the Contract and the Job atomically. */
 export const approveWork = async (
   contractId: string,
-  currentUser: JwtPayload
+  currentUser: JwtPayload,
 ) => {
   const contract = await prisma.contract.findUnique({
     where: { id: contractId },
@@ -228,7 +258,7 @@ export const approveWork = async (
   if (!allowedNext.includes("COMPLETED")) {
     throw new ApiError(
       400,
-      `Cannot complete a contract with status ${contract.status}`
+      `Cannot complete a contract with status ${contract.status}`,
     );
   }
 
@@ -251,16 +281,18 @@ export const approveWork = async (
     title: "Contract completed",
     message: `Your work on "${updated.job.title}" has been approved. The contract is now complete.`,
     link: `/contracts/${contractId}`,
+    entityType: "CONTRACT",
+    entityId: contractId,
+    meta: { jobId: updated.jobId },
   });
 
-  return updated;
+  return toContractResponse(updated);
 };
 
-/** Either participant can cancel, while it's still PENDING or ACTIVE. Reopens the job for re-hiring. */
 export const cancelContract = async (
   contractId: string,
   currentUser: JwtPayload,
-  reason: string
+  reason: string,
 ) => {
   const contract = await prisma.contract.findUnique({
     where: { id: contractId },
@@ -271,12 +303,12 @@ export const cancelContract = async (
   if (!CANCELLABLE_STATUSES.includes(contract.status)) {
     throw new ApiError(
       400,
-      `Cannot cancel a contract with status ${contract.status}`
+      `Cannot cancel a contract with status ${contract.status}`,
     );
   }
 
-  return prisma.$transaction(async (tx) => {
-    const updated = await tx.contract.update({
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.contract.update({
       where: { id: contractId },
       data: {
         status: "CANCELLED",
@@ -289,10 +321,13 @@ export const cancelContract = async (
       where: { id: contract.jobId },
       data: { status: "OPEN" },
     });
-    return updated;
+    return result;
   });
+
+  return toContractResponse(updated);
 };
 
+// System-triggered (payment confirmed). Same transition rule as the client route, no ownership check.
 export const activateContractSystem = async (contractId: string) => {
   const contract = await prisma.contract.findUnique({
     where: { id: contractId },
@@ -303,7 +338,7 @@ export const activateContractSystem = async (contractId: string) => {
   if (!allowedNext.includes("ACTIVE")) {
     throw new ApiError(
       400,
-      `Cannot activate contract from status ${contract.status}`
+      `Cannot activate contract from status ${contract.status}`,
     );
   }
 
@@ -320,7 +355,10 @@ export const activateContractSystem = async (contractId: string) => {
     message:
       "Payment confirmed — your contract is now active. You can begin work.",
     link: `/contracts/${contractId}`,
+    entityType: "CONTRACT",
+    entityId: contractId,
+    meta: { jobId: updated.jobId },
   });
 
-  return updated;
+  return toContractResponse(updated);
 };
