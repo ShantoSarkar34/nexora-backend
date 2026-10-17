@@ -6,17 +6,19 @@ import { getPagination, buildMeta } from "../../utils/pagination";
 import { stripe } from "../../config/stripeClient";
 import { env } from "../../config/env";
 import { activateContractSystem } from "../contract/contract.service";
+import { notifyUser } from "../notification/notification.service";
 import redisService from "../../utils/redisService";
 import { IPaymentListQuery } from "./payment.interface";
-import { Prisma } from "../../../generated/prisma/client";
+import { Prisma } from "../../../generated/prisma";
 import Stripe from "stripe";
-import { notifyUser } from "../notification/notification.service";
 
 const includePaymentDetails = {
   contract: {
     select: { id: true, jobId: true, job: { select: { title: true } } },
   },
 };
+
+const omitMetadata = { metadata: true } as const;
 
 export const createCheckoutSession = async (
   contractId: string,
@@ -74,6 +76,7 @@ export const createCheckoutSession = async (
       status: "PENDING",
       providerRef: session.id,
     },
+    omit: omitMetadata,
   });
 
   return { checkoutUrl: session.url, payment };
@@ -99,6 +102,7 @@ export const getPaymentsForContract = async (
     where: { contractId },
     orderBy: { createdAt: "desc" },
     include: includePaymentDetails,
+    omit: omitMetadata,
   });
 };
 
@@ -119,11 +123,83 @@ export const listMyPayments = async (
       skip,
       take,
       include: includePaymentDetails,
+      omit: omitMetadata,
     }),
     prisma.payment.count({ where }),
   ]);
 
   return { payments, meta: buildMeta(total, page, limit) };
+};
+
+const finalizeSuccessfulPayment = async (
+  paymentId: string,
+  session: Stripe.Checkout.Session,
+): Promise<void> => {
+  const claimed = await prisma.payment.updateMany({
+    where: { id: paymentId, status: { in: ["PENDING", "PROCESSING"] } },
+    data: {
+      status: "SUCCESS",
+      metadata: session as unknown as Prisma.InputJsonValue,
+    },
+  });
+  if (claimed.count === 0) return;
+
+  const payment = await prisma.payment.findUniqueOrThrow({
+    where: { id: paymentId },
+    include: { contract: { select: { id: true, status: true } } },
+  });
+
+  if (payment.contract.status !== "PENDING") {
+    // e.g. the contract was cancelled while the client was on the Stripe page.
+    console.error(
+      `[Payment] Payment ${paymentId} succeeded but contract ${payment.contract.id} is ${payment.contract.status}, not PENDING. A manual refund may be needed.`,
+    );
+    return;
+  }
+
+  const contract = await activateContractSystem(payment.contract.id);
+
+  await notifyUser({
+    userId: contract.freelancerId,
+    type: "PAYMENT_SUCCESSFUL",
+    title: "Payment received",
+    message:
+      "The client's payment has been confirmed and your contract is now active.",
+    link: `/contracts/${contract.id}`,
+    entityType: "PAYMENT",
+    entityId: paymentId,
+    meta: { contractId: contract.id, jobId: contract.jobId },
+  });
+};
+
+/**
+ * Self-heal fallback for the success-page redirect. The webhook stays the
+ * authoritative path; this covers a webhook that hasn't landed yet (or
+ * `stripe listen` not running locally). Idempotent via finalizeSuccessfulPayment.
+ */
+export const syncPaymentFromStripeSession = async (
+  sessionId: string,
+  currentUser: JwtPayload,
+) => {
+  const payment = await prisma.payment.findUnique({
+    where: { providerRef: sessionId },
+  });
+  if (!payment) throw new ApiError(404, "Payment not found for this session");
+
+  checkOwnership(payment.payerId, currentUser);
+
+  if (payment.status !== "SUCCESS") {
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    if (session.payment_status === "paid") {
+      await finalizeSuccessfulPayment(payment.id, session);
+    }
+  }
+
+  return prisma.payment.findUniqueOrThrow({
+    where: { id: payment.id },
+    include: includePaymentDetails,
+    omit: omitMetadata,
+  });
 };
 
 export const handleStripeWebhookEvent = async (event: Stripe.Event) => {
@@ -134,7 +210,6 @@ export const handleStripeWebhookEvent = async (event: Stripe.Event) => {
     );
     return;
   }
-  await redisService.set(eventDedupeKey, "1", 24 * 60 * 60);
 
   switch (event.type) {
     case "checkout.session.completed": {
@@ -149,32 +224,10 @@ export const handleStripeWebhookEvent = async (event: Stripe.Event) => {
         );
         return;
       }
-      if (payment.status === "SUCCESS") {
-        console.log(
-          `[Stripe Webhook] Payment ${payment.id} already SUCCESS, skipping`,
-        );
-        return;
+
+      if (session.payment_status === "paid") {
+        await finalizeSuccessfulPayment(payment.id, session);
       }
-
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: {
-          status: "SUCCESS",
-          metadata: session as unknown as Prisma.InputJsonValue,
-        },
-      });
-
-      const contract = await activateContractSystem(payment.contractId);
-
-      await notifyUser({
-        userId: contract.freelancerId,
-        type: "PAYMENT_SUCCESSFUL",
-        title: "Payment received",
-        message:
-          "The client's payment has been confirmed and your contract is now active.",
-        link: `/contracts/${contract.id}`,
-      });
-
       break;
     }
 
@@ -190,44 +243,8 @@ export const handleStripeWebhookEvent = async (event: Stripe.Event) => {
     default:
       console.log(`[Stripe Webhook] Unhandled event type: ${event.type}`);
   }
-};
 
-export const syncPaymentFromStripeSession = async (
-  sessionId: string,
-  currentUser: JwtPayload,
-) => {
-  const payment = await prisma.payment.findUnique({
-    where: { providerRef: sessionId },
-    include: includePaymentDetails,
-  });
-  if (!payment) throw new ApiError(404, "Payment not found for this session");
-
-  checkOwnership(payment.payerId, currentUser);
-
-  if (payment.status === "SUCCESS") {
-    return payment;
-  }
-
-  const session = await stripe.checkout.sessions.retrieve(sessionId);
-
-  if (session.payment_status === "paid") {
-    const updated = await prisma.payment.update({
-      where: { providerRef: sessionId },
-      data: {
-        status: "SUCCESS",
-        metadata: session as unknown as Prisma.InputJsonValue,
-      },
-      include: includePaymentDetails,
-    });
-    const contract = await prisma.contract.findUnique({
-      where: { id: updated.contractId },
-    });
-    if (contract && contract.status === "PENDING") {
-      await activateContractSystem(updated.contractId);
-    }
-
-    return updated;
-  }
-
-  return payment;
+  // Set only after successful processing, so a failure above still lets
+  // Stripe's retry through. Duplicates are also safe thanks to the atomic claim.
+  await redisService.set(eventDedupeKey, "1", 24 * 60 * 60);
 };

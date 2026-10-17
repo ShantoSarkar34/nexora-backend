@@ -4,13 +4,26 @@ import { JwtPayload } from "../../utils/jwt";
 import { getPagination, buildMeta } from "../../utils/pagination";
 import { ICreateReview, IReviewListQuery } from "./review.interface";
 import { notifyUser } from "../notification/notification.service";
+import { Prisma } from "../../../generated/prisma";
 
 const includeReviewDetails = {
   reviewer: { select: { id: true, name: true, imageUrl: true } },
   contract: {
     select: { id: true, jobId: true, job: { select: { title: true } } },
   },
-};
+} satisfies Prisma.ReviewInclude;
+
+type ReviewWithDetails = Prisma.ReviewGetPayload<{
+  include: typeof includeReviewDetails;
+}>;
+
+
+const toReviewResponse = (review: ReviewWithDetails) => ({
+  ...review,
+  authorId: review.reviewer.id,
+  authorName: review.reviewer.name,
+  authorImageUrl: review.reviewer.imageUrl,
+});
 
 export const createReview = async (
   contractId: string,
@@ -61,9 +74,12 @@ export const createReview = async (
     title: "You received a new review",
     message: `You received a ${data.rating}-star review`,
     link: `/contracts/${contractId}`,
+    entityType: "REVIEW",
+    entityId: review.id,
+    meta: { contractId },
   });
 
-  return review;
+  return toReviewResponse(review);
 };
 
 export const getReviewsForContract = async (
@@ -82,10 +98,11 @@ export const getReviewsForContract = async (
     throw new ApiError(403, "You are not a participant in this contract");
   }
 
-  return prisma.review.findMany({
+  const reviews = await prisma.review.findMany({
     where: { contractId },
     include: includeReviewDetails,
   });
+  return reviews.map(toReviewResponse);
 };
 
 export const listReviewsForUser = async (
@@ -105,7 +122,10 @@ export const listReviewsForUser = async (
     prisma.review.count({ where: { revieweeId: userId } }),
   ]);
 
-  return { reviews, meta: buildMeta(total, page, limit) };
+  return {
+    reviews: reviews.map(toReviewResponse),
+    meta: buildMeta(total, page, limit),
+  };
 };
 
 export const getRatingSummary = async (userId: string) => {
