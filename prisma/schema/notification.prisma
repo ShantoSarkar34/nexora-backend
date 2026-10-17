@@ -1,13 +1,27 @@
+enum NotificationEntityType {
+  JOB
+  APPLICATION
+  CONTRACT
+  PAYMENT
+  REVIEW
+  INVITATION
+  CONVERSATION
+  DISPUTE
+}
+
 model Notification {
   id     String @id @default(uuid())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  type    NotificationType
-  title   String
-  message String
-  link    String? // optional deep link for the frontend, e.g. "/contracts/abc123"
-  isRead  Boolean @default(false)
+  type       NotificationType
+  title      String
+  message    String
+  link       String?
+  entityType NotificationEntityType?
+  entityId   String?
+  meta       Json?
+  isRead     Boolean                 @default(false)
 
   createdAt DateTime @default(now())
 
