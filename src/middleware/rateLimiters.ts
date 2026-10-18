@@ -1,5 +1,5 @@
-import { rateLimiter } from "./rateLimiter";
 import { Request } from "express";
+import { rateLimiter } from "./rateLimiter";
 
 const byUserId = (req: Request): string =>
   req.user?.userId ?? req.ip ?? "unknown";
@@ -40,5 +40,12 @@ export const deleteAccountRateLimiter = rateLimiter({
   windowSeconds: 15 * 60,
   maxRequests: 5,
   keyPrefix: "delete-account",
+  keyGenerator: byUserId,
+});
+
+export const inviteRateLimiter = rateLimiter({
+  windowSeconds: 24 * 60 * 60,
+  maxRequests: 20,
+  keyPrefix: "invite",
   keyGenerator: byUserId,
 });
