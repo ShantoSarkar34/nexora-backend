@@ -23,6 +23,8 @@ model User {
     payments            Payment[]
     matchAnalyses       JobMatchAnalysis[]
     notifications       Notification[]
+    invitationsSent     Invitation[]       @relation("InvitationsSent")
+    invitationsReceived Invitation[]       @relation("InvitationsReceived")
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt

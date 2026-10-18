@@ -1,0 +1,28 @@
+model Invitation {
+  id String @id @default(uuid())
+
+  jobId String
+  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  clientId String
+  client   User   @relation("InvitationsSent", fields: [clientId], references: [id], onDelete: Cascade)
+
+  freelancerId String
+  freelancer   User   @relation("InvitationsReceived", fields: [freelancerId], references: [id], onDelete: Cascade)
+
+  message String?          @db.Text
+  status  InvitationStatus @default(PENDING)
+
+  // "<jobId>:<freelancerId>" while PENDING, NULL otherwise. Postgres allows many
+  // NULLs under a unique index, so this guarantees one PENDING invitation per
+  // (job, freelancer) at the database level. Never exposed in responses.
+  pendingKey String? @unique
+
+  createdAt   DateTime  @default(now())
+  respondedAt DateTime?
+
+  @@index([freelancerId, createdAt])
+  @@index([clientId, createdAt])
+  @@index([jobId, freelancerId])
+  @@map("invitations")
+}
