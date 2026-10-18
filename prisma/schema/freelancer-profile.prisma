@@ -16,6 +16,10 @@ model FreelancerProfile {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
+    @@index([hourlyRate])
+    @@index([availability])
+    @@index([experienceLevel])
+    @@index([createdAt])
     @@map("freelancer_profiles")
 }
 
