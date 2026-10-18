@@ -22,6 +22,7 @@ import notificationRoutes from "./modules/notification/notification.routes";
 import { allowedOrigins, isVercelPreviewOrigin } from "./config/corsOrigins";
 import userRoutes from "./modules/user/user.routes";
 import { decimalReplacer } from "./utils/jsonReplacer";
+import invitationRoutes from "./modules/invitation/invitation.routes";
 
 const app: Application = express();
 
@@ -125,6 +126,8 @@ app.use("/api/v1/payments", paymentRoutes);
 app.use("/api/v1/ai-match", aiMatchRoutes);
 // review route
 app.use("/api/v1/notifications", notificationRoutes);
+// invitation 
+app.use("/api/v1/invitations", invitationRoutes);
 
 // 404 — must come after all real routes
 app.use(notFound);

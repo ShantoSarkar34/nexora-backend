@@ -15,6 +15,7 @@ import {
 } from "./application.interface";
 import { ApplicationStatus, Prisma } from "../../../generated/prisma";
 import { notifyUser } from "../notification/notification.service";
+import { acceptPendingInvitationOp } from "../invitation/invitation.service";
 
 const includeApplicationDetails = {
   job: {
@@ -53,16 +54,19 @@ export const createApplication = async (
     throw new ApiError(409, "You have already applied to this job");
   }
 
-  const application = await prisma.application.create({
-    data: {
-      jobId: data.jobId,
-      freelancerId,
-      coverLetter: data.coverLetter,
-      proposedBudget: data.proposedBudget,
-      estimatedDeliveryDays: data.estimatedDeliveryDays,
-    },
-    include: includeApplicationDetails,
-  });
+  const [application] = await prisma.$transaction([
+    prisma.application.create({
+      data: {
+        jobId: data.jobId,
+        freelancerId,
+        coverLetter: data.coverLetter,
+        proposedBudget: data.proposedBudget,
+        estimatedDeliveryDays: data.estimatedDeliveryDays,
+      },
+      include: includeApplicationDetails,
+    }),
+    acceptPendingInvitationOp(data.jobId, freelancerId),
+  ]);
 
   await notifyUser({
     userId: job.clientId,
