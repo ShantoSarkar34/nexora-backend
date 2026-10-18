@@ -2,32 +2,23 @@ import prisma from "../../config/prismaClient";
 import ApiError from "../../utils/ApiError";
 import { checkOwnership } from "../../utils/checkOwnership";
 import { JwtPayload } from "../../utils/jwt";
+import { getPagination, buildMeta } from "../../utils/pagination";
+import { Prisma } from "../../../generated/prisma";
 import { findOrCreateSkill } from "../skill/skill.service";
 import {
   ICreateFreelancerProfile,
   IUpdateFreelancerProfile,
   IAddExperience,
   IAddPortfolio,
+  IFreelancerListQuery,
+  IFreelancerListItem,
 } from "./freelancer-profile.interface";
-import { getPagination, buildMeta } from "../../utils/pagination";
+import { calculateProfileCompletion } from "./freelancer-profile.utils";
 
 const includeFullProfile = {
   skills: { include: { skill: true } },
   experiences: true,
   portfolios: true,
-};
-
-const calculateCompletion = (profile: any): number => {
-  const checks = [
-    !!profile.title,
-    !!profile.bio,
-    !!profile.hourlyRate,
-    !!profile.experienceLevel,
-    profile.skills.length > 0,
-    profile.experiences.length > 0,
-    profile.portfolios.length > 0,
-  ];
-  return Math.round((checks.filter(Boolean).length / checks.length) * 100);
 };
 
 export const createFreelancerProfile = async (
@@ -48,7 +39,18 @@ export const getMyFreelancerProfile = async (userId: string) => {
   });
   if (!profile)
     throw new ApiError(404, "Freelancer profile not found. Create one first.");
-  return { ...profile, completionPercentage: calculateCompletion(profile) };
+
+  const completionPercentage = calculateProfileCompletion({
+    title: profile.title,
+    bio: profile.bio,
+    hourlyRate: profile.hourlyRate,
+    experienceLevel: profile.experienceLevel,
+    skillCount: profile.skills.length,
+    experienceCount: profile.experiences.length,
+    portfolioCount: profile.portfolios.length,
+  });
+
+  return { ...profile, completionPercentage };
 };
 
 export const updateFreelancerProfile = async (
@@ -151,62 +153,271 @@ export const deletePortfolio = async (
 };
 
 export const getPublicFreelancerProfile = async (userId: string) => {
-  const profile = await prisma.freelancerProfile.findUnique({
-    where: { userId },
+  const profile = await prisma.freelancerProfile.findFirst({
+    where: { userId, user: { deletedAt: null } },
     include: {
       ...includeFullProfile,
       user: { select: { name: true, createdAt: true, imageUrl: true } },
     },
   });
   if (!profile) throw new ApiError(404, "Freelancer profile not found");
-  return profile;
+
+  return {
+    ...profile,
+    name: profile.user.name,
+    imageUrl: profile.user.imageUrl,
+  };
 };
 
-export const listFreelancers = async (query: {
-  page?: string;
-  limit?: string;
-}) => {
-  const { skip, take, page, limit } = getPagination(query);
+const directoryInclude = {
+  user: { select: { name: true, imageUrl: true } },
+  skills: {
+    select: { skill: { select: { id: true, name: true } } },
+    orderBy: { skill: { name: "asc" } },
+  },
+  _count: { select: { skills: true, experiences: true, portfolios: true } },
+} satisfies Prisma.FreelancerProfileInclude;
 
-  const where = {
-    title: { not: "" },
-  };
+type DirectoryProfile = Prisma.FreelancerProfileGetPayload<{
+  include: typeof directoryInclude;
+}>;
 
-  const [freelancers, total] = await Promise.all([
-    prisma.freelancerProfile.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      skip,
-      take,
-      select: {
-        id: true,
-        userId: true,
-        title: true,
-        bio: true,
-        hourlyRate: true,
-        skills: {
-          include: {
-            skill: {
-              select: {
-                id: true,
-                name: true,
-              },
+interface RatingStat {
+  averageRating: number;
+  totalReviews: number;
+}
+
+const NO_RATING: RatingStat = { averageRating: 0, totalReviews: 0 };
+const MAX_SKILL_FILTERS = 10;
+
+const parseSkillNames = (raw?: string): string[] => {
+  if (!raw) return [];
+  const names = raw
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+  return [...new Set(names.map((name) => name.toLowerCase()))].slice(
+    0,
+    MAX_SKILL_FILTERS,
+  );
+};
+
+const fetchRatingStats = async (options: {
+  userIds?: string[];
+  minRating?: number;
+}): Promise<Map<string, RatingStat>> => {
+  const rows = await prisma.review.groupBy({
+    by: ["revieweeId"],
+    where: options.userIds
+      ? { revieweeId: { in: options.userIds } }
+      : undefined,
+    _avg: { rating: true },
+    _count: { rating: true },
+    having: { rating: { _avg: { gte: options.minRating ?? 0 } } },
+  });
+
+  return new Map(
+    rows.map((row) => [
+      row.revieweeId,
+      {
+        averageRating:
+          row._avg.rating === null ? 0 : Math.round(row._avg.rating * 10) / 10,
+        totalReviews: row._count.rating,
+      },
+    ]),
+  );
+};
+
+const buildDirectoryWhere = (
+  query: IFreelancerListQuery,
+  skillNames: string[],
+  eligibleUserIds?: string[],
+): Prisma.FreelancerProfileWhereInput => {
+  // Only profiles that actually have a title and a bio are listed.
+  const and: Prisma.FreelancerProfileWhereInput[] = [
+    { title: { not: null } },
+    { title: { not: "" } },
+    { bio: { not: null } },
+    { bio: { not: "" } },
+  ];
+
+  if (query.search) {
+    and.push({
+      OR: [
+        { title: { contains: query.search, mode: "insensitive" } },
+        { bio: { contains: query.search, mode: "insensitive" } },
+        { user: { name: { contains: query.search, mode: "insensitive" } } },
+        {
+          skills: {
+            some: {
+              skill: { name: { contains: query.search, mode: "insensitive" } },
             },
           },
         },
-        user: {
-          select: {
-            name: true,
-            imageUrl: true,
+      ],
+    });
+  }
+
+  if (skillNames.length > 0) {
+    and.push({
+      skills: {
+        some: {
+          skill: {
+            OR: skillNames.map((name) => ({
+              name: { equals: name, mode: "insensitive" as const },
+            })),
           },
         },
       },
-    }),
-    prisma.freelancerProfile.count({ where }),
-  ]);
+    });
+  }
 
-  return {
-    freelancers,
-    meta: buildMeta(total, page, limit),
+  const where: Prisma.FreelancerProfileWhereInput = {
+    AND: and,
+    user: { deletedAt: null },
+    ...(query.experienceLevel && { experienceLevel: query.experienceLevel }),
+    ...(query.availability && { availability: query.availability }),
+    ...(eligibleUserIds && { userId: { in: eligibleUserIds } }),
   };
+
+  if (query.minRate !== undefined || query.maxRate !== undefined) {
+    where.hourlyRate = {
+      ...(query.minRate !== undefined && { gte: query.minRate }),
+      ...(query.maxRate !== undefined && { lte: query.maxRate }),
+    };
+  }
+
+  return where;
+};
+
+const getDatabaseOrderBy = (
+  sortBy: Exclude<IFreelancerListQuery["sortBy"], "rating">,
+): Prisma.FreelancerProfileOrderByWithRelationInput[] => {
+  switch (sortBy) {
+    case "rate_asc":
+      return [
+        { hourlyRate: { sort: "asc", nulls: "last" } },
+        { createdAt: "desc" },
+        { id: "asc" },
+      ];
+    case "rate_desc":
+      return [
+        { hourlyRate: { sort: "desc", nulls: "last" } },
+        { createdAt: "desc" },
+        { id: "asc" },
+      ];
+    default:
+      return [{ createdAt: "desc" }, { id: "asc" }];
+  }
+};
+
+const toDirectoryItem = (
+  profile: DirectoryProfile,
+  stat: RatingStat,
+): IFreelancerListItem => ({
+  userId: profile.userId,
+  name: profile.user.name,
+  imageUrl: profile.user.imageUrl,
+  title: profile.title,
+  bio: profile.bio,
+  hourlyRate: profile.hourlyRate === null ? null : Number(profile.hourlyRate),
+  experienceLevel: profile.experienceLevel,
+  availability: profile.availability,
+  skills: profile.skills.map(({ skill }) => ({
+    id: skill.id,
+    name: skill.name,
+  })),
+  averageRating: stat.averageRating,
+  totalReviews: stat.totalReviews,
+  completionPercentage: calculateProfileCompletion({
+    title: profile.title,
+    bio: profile.bio,
+    hourlyRate: profile.hourlyRate,
+    experienceLevel: profile.experienceLevel,
+    skillCount: profile._count.skills,
+    experienceCount: profile._count.experiences,
+    portfolioCount: profile._count.portfolios,
+  }),
+});
+
+export const listFreelancers = async (query: IFreelancerListQuery) => {
+  const { skip, take, page, limit } = getPagination(query);
+  const skillNames = parseSkillNames(query.skills);
+
+  const needsGlobalRatings =
+    query.minRating !== undefined || query.sortBy === "rating";
+  let ratingStats: Map<string, RatingStat> | null = needsGlobalRatings
+    ? await fetchRatingStats({ minRating: query.minRating })
+    : null;
+
+  const eligibleUserIds =
+    query.minRating !== undefined && ratingStats
+      ? [...ratingStats.keys()]
+      : undefined;
+  const where = buildDirectoryWhere(query, skillNames, eligibleUserIds);
+
+  let profiles: DirectoryProfile[];
+  let total: number;
+
+  if (query.sortBy === "rating") {
+    const stats = ratingStats as Map<string, RatingStat>;
+    const candidates = await prisma.freelancerProfile.findMany({
+      where,
+      select: { userId: true, createdAt: true },
+    });
+
+    candidates.sort((a, b) => {
+      const ratingA = stats.get(a.userId) ?? NO_RATING;
+      const ratingB = stats.get(b.userId) ?? NO_RATING;
+      return (
+        ratingB.averageRating - ratingA.averageRating ||
+        ratingB.totalReviews - ratingA.totalReviews ||
+        b.createdAt.getTime() - a.createdAt.getTime() ||
+        a.userId.localeCompare(b.userId)
+      );
+    });
+
+    total = candidates.length;
+    const pageIds = candidates
+      .slice(skip, skip + take)
+      .map((candidate) => candidate.userId);
+
+    const loaded = await prisma.freelancerProfile.findMany({
+      where: { userId: { in: pageIds } },
+      include: directoryInclude,
+    });
+    const byUserId = new Map(
+      loaded.map((profile) => [profile.userId, profile]),
+    );
+    profiles = pageIds.flatMap((id) => byUserId.get(id) ?? []);
+  } else {
+    const [rows, count] = await Promise.all([
+      prisma.freelancerProfile.findMany({
+        where,
+        orderBy: getDatabaseOrderBy(query.sortBy),
+        skip,
+        take,
+        include: directoryInclude,
+      }),
+      prisma.freelancerProfile.count({ where }),
+    ]);
+    profiles = rows;
+    total = count;
+
+    if (!ratingStats) {
+      ratingStats =
+        profiles.length > 0
+          ? await fetchRatingStats({
+              userIds: profiles.map((profile) => profile.userId),
+            })
+          : new Map();
+    }
+  }
+
+  const stats = ratingStats ?? new Map<string, RatingStat>();
+  const items = profiles.map((profile) =>
+    toDirectoryItem(profile, stats.get(profile.userId) ?? NO_RATING),
+  );
+
+  return { items, meta: buildMeta(total, page, limit) };
 };

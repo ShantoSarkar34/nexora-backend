@@ -1,3 +1,5 @@
+import { Availability, ExperienceLevel } from "../../../generated/prisma";
+
 export interface ICreateFreelancerProfile {
   title?: string;
   bio?: string;
@@ -22,4 +24,35 @@ export interface IAddPortfolio {
   description?: string;
   projectUrl?: string;
   imageUrl?: string;
+}
+
+export type FreelancerSortBy = "newest" | "rate_asc" | "rate_desc" | "rating";
+
+
+export interface IFreelancerListQuery {
+  search?: string;
+  skills?: string; 
+  experienceLevel?: ExperienceLevel;
+  availability?: Availability;
+  minRate?: number;
+  maxRate?: number;
+  minRating?: number;
+  sortBy: FreelancerSortBy;
+  page?: string;
+  limit?: string;
+}
+
+export interface IFreelancerListItem {
+  userId: string;
+  name: string;
+  imageUrl: string | null;
+  title: string | null;
+  bio: string | null;
+  hourlyRate: number | null;
+  experienceLevel: ExperienceLevel | null;
+  availability: Availability;
+  skills: { id: string; name: string }[];
+  averageRating: number;
+  totalReviews: number;
+  completionPercentage: number;
 }

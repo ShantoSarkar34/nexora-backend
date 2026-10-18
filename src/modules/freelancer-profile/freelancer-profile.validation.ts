@@ -35,3 +35,56 @@ export const portfolioSchema = z.object({
     imageUrl: z.string().url().optional(),
   }),
 });
+
+// "?minRate=" or "?availability=" (empty) should mean "not provided", not an error.
+const emptyToUndefined = (value: unknown) => (value === "" ? undefined : value);
+
+export const listFreelancersSchema = z.object({
+  query: z
+    .object({
+      search: z.preprocess(
+        emptyToUndefined,
+        z.string().trim().max(100).optional(),
+      ),
+      skills: z.preprocess(
+        emptyToUndefined,
+        z.string().trim().max(500).optional(),
+      ),
+      experienceLevel: z.preprocess(
+        emptyToUndefined,
+        z.enum(["ENTRY", "INTERMEDIATE", "EXPERT"]).optional(),
+      ),
+      availability: z.preprocess(
+        emptyToUndefined,
+        z.enum(["AVAILABLE", "BUSY", "NOT_AVAILABLE"]).optional(),
+      ),
+      minRate: z.preprocess(
+        emptyToUndefined,
+        z.coerce.number().min(0).optional(),
+      ),
+      maxRate: z.preprocess(
+        emptyToUndefined,
+        z.coerce.number().min(0).optional(),
+      ),
+      minRating: z.preprocess(
+        emptyToUndefined,
+        z.coerce.number().min(1).max(5).optional(),
+      ),
+      sortBy: z.preprocess(
+        emptyToUndefined,
+        z.enum(["newest", "rate_asc", "rate_desc", "rating"]).default("newest"),
+      ),
+      page: z.preprocess(emptyToUndefined, z.string().optional()),
+      limit: z.preprocess(emptyToUndefined, z.string().optional()),
+    })
+    .refine(
+      (query) =>
+        query.minRate === undefined ||
+        query.maxRate === undefined ||
+        query.maxRate >= query.minRate,
+      {
+        message: "maxRate must be greater than or equal to minRate",
+        path: ["maxRate"],
+      },
+    ),
+});

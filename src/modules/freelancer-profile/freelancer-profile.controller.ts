@@ -1,7 +1,9 @@
 import { Request, Response } from "express";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
+import { getParam } from "../../utils/getParam";
 import * as freelancerProfileService from "./freelancer-profile.service";
+import { listFreelancersSchema } from "./freelancer-profile.validation";
 
 export const createFreelancerProfile = catchAsync(
   async (req: Request, res: Response) => {
@@ -60,7 +62,7 @@ export const addSkill = catchAsync(async (req: Request, res: Response) => {
 export const removeSkill = catchAsync(async (req: Request, res: Response) => {
   await freelancerProfileService.removeSkill(
     req.user!.userId,
-    req.params.skillId as string,
+    getParam(req, "skillId"),
     req.user!,
   );
   sendResponse(res, 200, { success: true, message: "Skill removed" });
@@ -81,7 +83,7 @@ export const addExperience = catchAsync(async (req: Request, res: Response) => {
 export const deleteExperience = catchAsync(
   async (req: Request, res: Response) => {
     await freelancerProfileService.deleteExperience(
-      req.params.experienceId as string,
+      getParam(req, "experienceId"),
       req.user!,
     );
     sendResponse(res, 200, { success: true, message: "Experience deleted" });
@@ -103,7 +105,7 @@ export const addPortfolio = catchAsync(async (req: Request, res: Response) => {
 export const deletePortfolio = catchAsync(
   async (req: Request, res: Response) => {
     await freelancerProfileService.deletePortfolio(
-      req.params.portfolioId as string,
+      getParam(req, "portfolioId"),
       req.user!,
     );
     sendResponse(res, 200, {
@@ -116,7 +118,7 @@ export const deletePortfolio = catchAsync(
 export const getPublicFreelancerProfile = catchAsync(
   async (req: Request, res: Response) => {
     const profile = await freelancerProfileService.getPublicFreelancerProfile(
-      req.params.userId as string,
+      getParam(req, "userId"),
     );
     sendResponse(res, 200, {
       success: true,
@@ -128,15 +130,16 @@ export const getPublicFreelancerProfile = catchAsync(
 
 export const listFreelancers = catchAsync(
   async (req: Request, res: Response) => {
-    const result = await freelancerProfileService.listFreelancers({
-      page: req.query.page as string | undefined,
-      limit: req.query.limit as string | undefined,
-    });
-
+    // Parsed here (not via validateRequest) because the service needs the coerced
+    // numbers and defaults. A ZodError still goes through the error handler as 400.
+    const { query } = listFreelancersSchema.parse({ query: req.query });
+    const { items, meta } =
+      await freelancerProfileService.listFreelancers(query);
     sendResponse(res, 200, {
       success: true,
-      message: "Freelancers fetched successfully",
-      data: result,
+      message: "Freelancers fetched",
+      data: items,
+      meta,
     });
   },
 );
