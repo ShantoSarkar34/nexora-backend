@@ -11,20 +11,23 @@ model User {
     imageUrl          String?
     deletedAt         DateTime?
 
-    freelancerProfile   FreelancerProfile?
-    clientProfile       ClientProfile?
-    jobs                Job[]
-    savedJobs           SavedJob[]
-    applications        Application[]
-    clientContracts     Contract[]         @relation("ClientContracts")
-    freelancerContracts Contract[]         @relation("FreelancerContracts")
-    reviewsGiven        Review[]           @relation("ReviewsGiven")
-    reviewsReceived     Review[]           @relation("ReviewsReceived")
-    payments            Payment[]
-    matchAnalyses       JobMatchAnalysis[]
-    notifications       Notification[]
-    invitationsSent     Invitation[]       @relation("InvitationsSent")
-    invitationsReceived Invitation[]       @relation("InvitationsReceived")
+    freelancerProfile         FreelancerProfile?
+    clientProfile             ClientProfile?
+    jobs                      Job[]
+    savedJobs                 SavedJob[]
+    applications              Application[]
+    clientContracts           Contract[]         @relation("ClientContracts")
+    freelancerContracts       Contract[]         @relation("FreelancerContracts")
+    reviewsGiven              Review[]           @relation("ReviewsGiven")
+    reviewsReceived           Review[]           @relation("ReviewsReceived")
+    payments                  Payment[]
+    matchAnalyses             JobMatchAnalysis[]
+    notifications             Notification[]
+    invitationsSent           Invitation[]       @relation("InvitationsSent")
+    invitationsReceived       Invitation[]       @relation("InvitationsReceived")
+    conversationsAsClient     Conversation[]     @relation("ConversationsAsClient")
+    conversationsAsFreelancer Conversation[]     @relation("ConversationsAsFreelancer")
+    messagesSent              Message[]          @relation("MessagesSent")
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt

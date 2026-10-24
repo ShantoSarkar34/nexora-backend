@@ -96,6 +96,7 @@ enum NotificationType {
     NEW_INVITATION
     INVITATION_ACCEPTED
     INVITATION_DECLINED
+    NEW_MESSAGE
 }
 
 enum InvitationStatus {

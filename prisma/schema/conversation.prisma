@@ -1,0 +1,45 @@
+model Conversation {
+    id String @id @default(uuid())
+
+    jobId String
+    job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+    clientId String
+    client   User   @relation("ConversationsAsClient", fields: [clientId], references: [id], onDelete: Cascade)
+
+    freelancerId String
+    freelancer   User   @relation("ConversationsAsFreelancer", fields: [freelancerId], references: [id], onDelete: Cascade)
+
+    lastMessageAt       DateTime @default(now())
+    lastMessageBody     String?  @db.Text
+    lastMessageSenderId String?
+
+    createdAt DateTime @default(now())
+
+    messages Message[]
+
+    @@unique([clientId, freelancerId, jobId])
+    @@index([clientId, lastMessageAt])
+    @@index([freelancerId, lastMessageAt])
+    @@index([jobId])
+    @@map("conversations")
+}
+
+model Message {
+    id String @id @default(uuid())
+
+    conversationId String
+    conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+    senderId String
+    sender   User   @relation("MessagesSent", fields: [senderId], references: [id], onDelete: Cascade)
+
+    body   String    @db.Text
+    readAt DateTime?
+
+    createdAt DateTime @default(now())
+
+    @@index([conversationId, createdAt])
+    @@index([conversationId, readAt])
+    @@map("messages")
+}

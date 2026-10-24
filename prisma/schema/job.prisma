@@ -19,6 +19,7 @@ model Job {
     contract      Contract?
     matchAnalyses JobMatchAnalysis[]
     invitations   Invitation[]
+    conversations Conversation[]
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
