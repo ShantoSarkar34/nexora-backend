@@ -43,9 +43,18 @@ export const deleteAccountRateLimiter = rateLimiter({
   keyGenerator: byUserId,
 });
 
+// 20 invitations per client per day.
 export const inviteRateLimiter = rateLimiter({
   windowSeconds: 24 * 60 * 60,
   maxRequests: 20,
   keyPrefix: "invite",
+  keyGenerator: byUserId,
+});
+
+// 30 messages per user per minute.
+export const messageRateLimiter = rateLimiter({
+  windowSeconds: 60,
+  maxRequests: 30,
+  keyPrefix: "message",
   keyGenerator: byUserId,
 });

@@ -23,6 +23,8 @@ import { allowedOrigins, isVercelPreviewOrigin } from "./config/corsOrigins";
 import userRoutes from "./modules/user/user.routes";
 import { decimalReplacer } from "./utils/jsonReplacer";
 import invitationRoutes from "./modules/invitation/invitation.routes";
+import conversationRoutes from "./modules/conversation/conversation.routes";
+import messageRoutes from "./modules/conversation/message.routes";
 
 const app: Application = express();
 
@@ -126,12 +128,15 @@ app.use("/api/v1/payments", paymentRoutes);
 app.use("/api/v1/ai-match", aiMatchRoutes);
 // review route
 app.use("/api/v1/notifications", notificationRoutes);
-// invitation 
+// invitation
 app.use("/api/v1/invitations", invitationRoutes);
+
+// message
+app.use("/api/v1/conversations", conversationRoutes);
+app.use("/api/v1/messages", messageRoutes);
 
 // 404 — must come after all real routes
 app.use(notFound);
-
 // Centralized error handler — must always be last
 app.use(errorHandler);
 

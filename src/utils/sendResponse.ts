@@ -9,13 +9,14 @@ interface ApiResponse<T> {
     limit?: number;
     total?: number;
     totalPages?: number;
+    hasMore?: boolean;
   };
 }
 
 const sendResponse = <T>(
   res: Response,
   statusCode: number,
-  payload: ApiResponse<T>
+  payload: ApiResponse<T>,
 ) => {
   res.status(statusCode).json(payload);
 };
