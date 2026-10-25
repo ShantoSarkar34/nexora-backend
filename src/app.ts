@@ -25,6 +25,7 @@ import { decimalReplacer } from "./utils/jsonReplacer";
 import invitationRoutes from "./modules/invitation/invitation.routes";
 import conversationRoutes from "./modules/conversation/conversation.routes";
 import messageRoutes from "./modules/conversation/message.routes";
+import dashboardRoutes from "./modules/dashboard/dashboard.routes";
 
 const app: Application = express();
 
@@ -134,6 +135,9 @@ app.use("/api/v1/invitations", invitationRoutes);
 // message
 app.use("/api/v1/conversations", conversationRoutes);
 app.use("/api/v1/messages", messageRoutes);
+
+// dashboard
+app.use("/api/v1/dashboard", dashboardRoutes);
 
 // 404 — must come after all real routes
 app.use(notFound);
