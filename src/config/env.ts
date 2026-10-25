@@ -31,6 +31,8 @@ const envSchema = z.object({
   AI_DAILY_REQUEST_LIMIT: z.coerce.number().default(20),
   ADDITIONAL_ALLOWED_ORIGINS: z.string().optional(),
   IMGBB_API_KEY: z.string().min(1, "IMGBB_API_KEY is required"),
+
+  PLATFORM_FEE_PERCENT: z.coerce.number().min(0).max(100).default(10),
 });
 
 const parsed = envSchema.safeParse(process.env);
