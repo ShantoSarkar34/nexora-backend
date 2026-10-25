@@ -9,7 +9,7 @@ import { ICreateJob, IUpdateJob, IJobListQuery } from "./job.interface";
 import { JobStatus, Prisma } from "../../../generated/prisma";
 import redisService from "../../utils/redisService";
 
-const includeJobDetails = {
+export const includeJobDetails = {
   skills: { include: { skill: true } },
   client: {
     select: {
@@ -25,18 +25,24 @@ const includeJobDetails = {
   },
 } satisfies Prisma.JobInclude;
 
-type JobWithDetails = Prisma.JobGetPayload<{
+export type JobWithDetails = Prisma.JobGetPayload<{
   include: typeof includeJobDetails;
 }>;
 
-interface JobFlags {
+export interface JobFlags {
   isSaved: boolean;
   hasApplied: boolean;
 }
 
 const NO_FLAGS: JobFlags = { isSaved: false, hasApplied: false };
 
-const toJobResponse = (job: JobWithDetails, flags: JobFlags = NO_FLAGS) => {
+// The one job shape returned by every job endpoint (and the recommended feed).
+// `skills` and `client` keep their original nested shape so the live frontend
+// doesn't break; the flat client fields are added beside them.
+export const toJobResponse = (
+  job: JobWithDetails,
+  flags: JobFlags = NO_FLAGS,
+) => {
   const { _count, ...rest } = job;
   return {
     ...rest,
@@ -52,7 +58,8 @@ const toJobResponse = (job: JobWithDetails, flags: JobFlags = NO_FLAGS) => {
 
 type JobResponse = ReturnType<typeof toJobResponse>;
 
-
+// isSaved/hasApplied only make sense for a logged-in freelancer. Everyone else
+// gets false for both.
 const getJobFlagSets = async (
   user: JwtPayload | undefined,
   jobIds: string[],
@@ -225,6 +232,7 @@ export const listJobs = async (query: IJobListQuery, user?: JwtPayload) => {
   let base: { jobs: JobResponse[]; meta: ReturnType<typeof buildMeta> };
 
   if (cached) {
+    // Dates come back as ISO strings here, which is exactly what res.json() would send anyway.
     base = JSON.parse(cached);
   } else {
     const { skip, take, page, limit } = getPagination(query);
@@ -323,6 +331,7 @@ export const unsaveJob = async (userId: string, jobId: string) => {
   await prisma.savedJob.delete({ where: { userId_jobId: { userId, jobId } } });
 };
 
+// Returns flat jobs (same shape as the job list) plus savedAt, not join-table rows.
 export const listSavedJobs = async (userId: string, query: IJobListQuery) => {
   const { skip, take, page, limit } = getPagination(query);
 

@@ -10,6 +10,7 @@ interface ApiResponse<T> {
     total?: number;
     totalPages?: number;
     hasMore?: boolean;
+    reason?: string;
   };
 }
 

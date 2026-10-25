@@ -1,5 +1,6 @@
 import { Router } from "express";
 import * as jobController from "./job.controller";
+import * as recommendationController from "../recommendation/recommendation.controller";
 import { authenticate } from "../../middleware/auth.middleware";
 import { optionalAuthenticate } from "../../middleware/optionalAuth.middleware";
 import { authorize } from "../../middleware/authorize";
@@ -21,12 +22,17 @@ router.get(
   jobController.listJobs,
 );
 
-// Freelancer: saved jobs (must come before "/:jobId")
 router.get(
   "/saved/me",
   authenticate,
   authorize("FREELANCER"),
   jobController.listSavedJobs,
+);
+router.get(
+  "/recommended",
+  authenticate,
+  authorize("FREELANCER"),
+  recommendationController.getRecommendedJobs,
 );
 router.post(
   "/:jobId/save",
