@@ -8,7 +8,12 @@ import { env } from "../../config/env";
 import { activateContractSystem } from "../contract/contract.service";
 import { notifyUser } from "../notification/notification.service";
 import redisService from "../../utils/redisService";
-import { IPaymentListQuery } from "./payment.interface";
+import { IPaymentListQuery, ITransactionListQuery } from "./payment.interface";
+import {
+  EARNED_CONTRACT_STATUSES,
+  ESCROW_CONTRACT_STATUSES,
+} from "./payment.constants";
+import { calculateFeeSplit } from "./payment.utils";
 import { Prisma } from "../../../generated/prisma";
 import Stripe from "stripe";
 
@@ -46,6 +51,12 @@ export const createCheckoutSession = async (
 
   const amountInCents = Math.round(Number(contract.agreedBudget) * 100);
 
+  const feePercent = env.PLATFORM_FEE_PERCENT;
+  const { feeAmount, netAmount } = calculateFeeSplit(
+    Number(contract.agreedBudget),
+    feePercent,
+  );
+
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     payment_method_types: ["card"],
@@ -75,6 +86,9 @@ export const createCheckoutSession = async (
       provider: "STRIPE",
       status: "PENDING",
       providerRef: session.id,
+      feePercent,
+      feeAmount,
+      netAmount,
     },
     omit: omitMetadata,
   });
@@ -139,6 +153,7 @@ const finalizeSuccessfulPayment = async (
     where: { id: paymentId, status: { in: ["PENDING", "PROCESSING"] } },
     data: {
       status: "SUCCESS",
+      paidAt: new Date(),
       metadata: session as unknown as Prisma.InputJsonValue,
     },
   });
@@ -247,4 +262,130 @@ export const handleStripeWebhookEvent = async (event: Stripe.Event) => {
   // Set only after successful processing, so a failure above still lets
   // Stripe's retry through. Duplicates are also safe thanks to the atomic claim.
   await redisService.set(eventDedupeKey, "1", 24 * 60 * 60);
+};
+
+// ---------------------------------------------------------------------------
+// Earnings and spending. These are recorded balances only: there are no real
+// payouts (Stripe Connect is out of scope).
+// ---------------------------------------------------------------------------
+
+export const getFreelancerEarningsSummary = async (freelancerId: string) => {
+  const [earned, escrow, completedContracts] = await Promise.all([
+    prisma.payment.aggregate({
+      where: {
+        status: "SUCCESS",
+        contract: { freelancerId, status: { in: EARNED_CONTRACT_STATUSES } },
+      },
+      _sum: { netAmount: true, feeAmount: true },
+    }),
+    prisma.payment.aggregate({
+      where: {
+        status: "SUCCESS",
+        contract: { freelancerId, status: { in: ESCROW_CONTRACT_STATUSES } },
+      },
+      _sum: { netAmount: true },
+    }),
+    // Only contracts that actually have a successful payment behind them.
+    prisma.contract.count({
+      where: {
+        freelancerId,
+        status: "COMPLETED",
+        payments: { some: { status: "SUCCESS" } },
+      },
+    }),
+  ]);
+
+  return {
+    totalEarned: Number(earned._sum.netAmount ?? 0),
+    inEscrow: Number(escrow._sum.netAmount ?? 0),
+    platformFeesPaid: Number(earned._sum.feeAmount ?? 0),
+    completedContracts,
+  };
+};
+
+export const getClientSpendingSummary = async (clientId: string) => {
+  const [spent, escrow, completedContracts] = await Promise.all([
+    prisma.payment.aggregate({
+      where: {
+        status: "SUCCESS",
+        contract: { clientId, status: { in: EARNED_CONTRACT_STATUSES } },
+      },
+      _sum: { amount: true },
+    }),
+    prisma.payment.aggregate({
+      where: {
+        status: "SUCCESS",
+        contract: { clientId, status: { in: ESCROW_CONTRACT_STATUSES } },
+      },
+      _sum: { amount: true },
+    }),
+    prisma.contract.count({
+      where: {
+        clientId,
+        status: "COMPLETED",
+        payments: { some: { status: "SUCCESS" } },
+      },
+    }),
+  ]);
+
+  return {
+    totalSpent: Number(spent._sum.amount ?? 0),
+    inEscrow: Number(escrow._sum.amount ?? 0),
+    completedContracts,
+  };
+};
+
+export const listFreelancerTransactions = async (
+  freelancerId: string,
+  query: ITransactionListQuery,
+) => {
+  const { skip, take, page, limit } = getPagination(query);
+
+  // Exactly the payments behind the "earned" and "in escrow" numbers.
+  const where: Prisma.PaymentWhereInput = {
+    status: "SUCCESS",
+    contract: {
+      freelancerId,
+      status: {
+        in: [...EARNED_CONTRACT_STATUSES, ...ESCROW_CONTRACT_STATUSES],
+      },
+    },
+  };
+
+  const [payments, total] = await Promise.all([
+    prisma.payment.findMany({
+      where,
+      orderBy: [{ paidAt: { sort: "desc", nulls: "last" } }, { id: "asc" }],
+      skip,
+      take,
+      include: {
+        contract: {
+          select: {
+            status: true,
+            completedAt: true,
+            job: { select: { title: true } },
+            client: { select: { id: true, name: true, imageUrl: true } },
+          },
+        },
+      },
+      omit: omitMetadata,
+    }),
+    prisma.payment.count({ where }),
+  ]);
+
+  const transactions = payments.map((payment) => ({
+    id: payment.id,
+    contractId: payment.contractId,
+    jobTitle: payment.contract.job.title,
+    client: payment.contract.client,
+    gross: Number(payment.amount),
+    feePercent: Number(payment.feePercent),
+    fee: Number(payment.feeAmount),
+    net: Number(payment.netAmount),
+    contractStatus: payment.contract.status,
+    paidAt: payment.paidAt,
+    completedAt: payment.contract.completedAt,
+  }));
+
+  return { transactions, meta: buildMeta(total, page, limit) };
 };

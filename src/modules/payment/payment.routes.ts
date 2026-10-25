@@ -24,11 +24,30 @@ router.get(
   validateRequest(listPaymentsQuerySchema),
   paymentController.listMyPayments,
 );
-
 router.get(
   "/verify/:sessionId",
   authenticate,
   paymentController.verifyPaymentSession,
+);
+
+// Recorded balances (no real payouts)
+router.get(
+  "/earnings/me",
+  authenticate,
+  authorize("FREELANCER"),
+  paymentController.getFreelancerEarnings,
+);
+router.get(
+  "/earnings/me/transactions",
+  authenticate,
+  authorize("FREELANCER"),
+  paymentController.listFreelancerTransactions,
+);
+router.get(
+  "/spending/me",
+  authenticate,
+  authorize("CLIENT"),
+  paymentController.getClientSpending,
 );
 
 export default router;

@@ -13,3 +13,8 @@ export interface IPaymentListQuery {
   page?: string;
   limit?: string;
 }
+
+export interface ITransactionListQuery {
+  page?: string;
+  limit?: string;
+}
