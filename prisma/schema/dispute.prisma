@@ -1,0 +1,52 @@
+// prisma/schema/dispute.prisma  (NEW)
+model Dispute {
+    id String @id @default(uuid())
+
+    contractId String
+    contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+    openedById String
+    openedBy   User   @relation("DisputesOpened", fields: [openedById], references: [id], onDelete: Cascade)
+
+    reason                 String         @db.Text
+    previousContractStatus ContractStatus
+    status                 DisputeStatus  @default(OPEN)
+
+    resolution     DisputeResolution?
+    resolutionNote String?            @db.Text
+    resolvedById   String?
+    resolvedBy     User?              @relation("DisputesResolved", fields: [resolvedById], references: [id], onDelete: SetNull)
+    resolvedAt     DateTime?
+
+    // Outcome of the Stripe refund when the resolution is REFUND_CLIENT.
+    refundStatus   RefundStatus?
+    stripeRefundId String?
+    refundError    String?       @db.Text
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([contractId, status])
+    @@index([openedById])
+    @@index([status, createdAt])
+    @@map("disputes")
+}
+
+// Audit trail of every admin mutation. Written in the same transaction as the change itself.
+model AdminAction {
+    id String @id @default(uuid())
+
+    adminId String
+    admin   User   @relation("AdminActions", fields: [adminId], references: [id], onDelete: Cascade)
+
+    action     String
+    targetType String
+    targetId   String
+    note       String? @db.Text
+
+    createdAt DateTime @default(now())
+
+    @@index([adminId, createdAt])
+    @@index([targetType, targetId])
+    @@map("admin_actions")
+}

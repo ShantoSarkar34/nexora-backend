@@ -97,6 +97,8 @@ enum NotificationType {
     INVITATION_ACCEPTED
     INVITATION_DECLINED
     NEW_MESSAGE
+    DISPUTE_OPENED
+    DISPUTE_RESOLVED
 }
 
 enum InvitationStatus {
@@ -105,4 +107,22 @@ enum InvitationStatus {
     DECLINED
     CANCELLED
     EXPIRED
+}
+
+enum DisputeStatus {
+    OPEN
+    RESOLVED
+    WITHDRAWN
+}
+
+enum DisputeResolution {
+    REFUND_CLIENT
+    RELEASE_TO_FREELANCER
+    NO_ACTION
+}
+
+enum RefundStatus {
+    SUCCEEDED
+    FAILED
+    NO_PAYMENT
 }
