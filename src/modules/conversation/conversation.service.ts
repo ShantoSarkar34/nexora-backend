@@ -19,6 +19,7 @@ const conversationInclude = {
       imageUrl: true,
       role: true,
       deletedAt: true,
+      isSuspended: true,
     },
   },
   freelancer: {
@@ -28,6 +29,7 @@ const conversationInclude = {
       imageUrl: true,
       role: true,
       deletedAt: true,
+      isSuspended: true,
     },
   },
 } satisfies Prisma.ConversationInclude;
@@ -129,12 +131,19 @@ const getParticipantConversation = async (
   return conversation;
 };
 
-// Phase 6 adds User.isSuspended; extend this check there.
 const assertAccountsActive = (conversation: ConversationWithDetails): void => {
-  if (conversation.client.deletedAt || conversation.freelancer.deletedAt) {
+  const { client, freelancer } = conversation;
+
+  if (client.deletedAt || freelancer.deletedAt) {
     throw new ApiError(
       400,
       "This conversation is closed because one of the accounts was deleted",
+    );
+  }
+  if (client.isSuspended || freelancer.isSuspended) {
+    throw new ApiError(
+      400,
+      "This conversation is unavailable because one of the accounts is suspended",
     );
   }
 };
@@ -197,6 +206,7 @@ export const getOrCreateConversation = async (
       id: input.otherUserId,
       role: viewerIsClient ? "FREELANCER" : "CLIENT",
       deletedAt: null,
+      isSuspended: false,
     },
     select: { id: true },
   });
@@ -296,6 +306,13 @@ export const listMyConversations = async (
   };
 };
 
+/**
+ * Cursor pagination over (createdAt, id).
+ * - no cursor: the latest `limit` messages
+ * - before:    the `limit` messages just older than the cursor
+ * - after:     up to `limit` messages newer than the cursor (cheap polling)
+ * Always returned oldest first. hasMore means "more exist in the direction you asked for".
+ */
 export const listMessages = async (
   conversationId: string,
   viewer: JwtPayload,

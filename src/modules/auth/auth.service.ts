@@ -78,6 +78,11 @@ export const loginUser = async ({
     throw new ApiError(401, "Invalid email or password");
   }
 
+  // Checked after the password, so the suspension status is never revealed to someone guessing.
+  if (user.isSuspended) {
+    throw new ApiError(403, "Account suspended");
+  }
+
   const token = signJwt({ userId: user.id, role: user.role });
   return { token, user: toCurrentUser(user) };
 };
@@ -201,6 +206,10 @@ export const googleAuth = async ({
   }
 
   let user = await prisma.user.findUnique({ where: { email: payload.email } });
+
+  if (user?.isSuspended) {
+    throw new ApiError(403, "Account suspended");
+  }
 
   if (!user) {
     if (!role) {
