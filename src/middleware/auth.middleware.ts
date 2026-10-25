@@ -1,4 +1,3 @@
-// src/middleware/auth.middleware.ts
 import { Request, Response, NextFunction } from "express";
 import { verifyJwt, JwtPayload } from "../utils/jwt";
 import ApiError from "../utils/ApiError";
@@ -35,6 +34,10 @@ export const authenticate = catchAsync(
     });
     if (!user || user.deletedAt) {
       throw new ApiError(401, "User no longer exists");
+    }
+
+    if (user.isSuspended) {
+      throw new ApiError(403, "Account suspended");
     }
 
     if (
