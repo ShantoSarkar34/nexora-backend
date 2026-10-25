@@ -26,6 +26,8 @@ import invitationRoutes from "./modules/invitation/invitation.routes";
 import conversationRoutes from "./modules/conversation/conversation.routes";
 import messageRoutes from "./modules/conversation/message.routes";
 import dashboardRoutes from "./modules/dashboard/dashboard.routes";
+import disputeRoutes from "./modules/dispute/dispute.routes";
+import adminRoutes from "./modules/admin/admin.routes";
 
 const app: Application = express();
 
@@ -138,6 +140,10 @@ app.use("/api/v1/messages", messageRoutes);
 
 // dashboard
 app.use("/api/v1/dashboard", dashboardRoutes);
+// dispute
+app.use("/api/v1/disputes", disputeRoutes);
+// admin
+app.use("/api/v1/admin", adminRoutes);
 
 // 404 — must come after all real routes
 app.use(notFound);
