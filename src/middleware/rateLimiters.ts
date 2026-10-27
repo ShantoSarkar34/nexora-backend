@@ -58,3 +58,10 @@ export const messageRateLimiter = rateLimiter({
   keyPrefix: "message",
   keyGenerator: byUserId,
 });
+
+export const uploadSignRateLimiter = rateLimiter({
+  windowSeconds: 60 * 60,
+  maxRequests: 30,
+  keyPrefix: "upload-sign",
+  keyGenerator: byUserId,
+});
