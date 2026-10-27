@@ -18,6 +18,7 @@ model Contract {
 
   submissionNote String?   @db.Text
   submissionUrl  String?
+  attachments    Json      @default("[]")
   submittedAt    DateTime?
   completedAt    DateTime?
   cancelledAt    DateTime?

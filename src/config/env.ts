@@ -33,6 +33,10 @@ const envSchema = z.object({
   IMGBB_API_KEY: z.string().min(1, "IMGBB_API_KEY is required"),
 
   PLATFORM_FEE_PERCENT: z.coerce.number().min(0).max(100).default(10),
+
+  CLOUDINARY_CLOUD_NAME: z.string().min(1).optional(),
+CLOUDINARY_API_KEY: z.string().min(1).optional(),
+CLOUDINARY_API_SECRET: z.string().min(1).optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
