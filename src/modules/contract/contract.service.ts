@@ -11,6 +11,7 @@ import { ISubmitWork, IContractListQuery } from "./contract.interface";
 import { APPLICATION_STATUS_TRANSITIONS } from "../application/application.constants";
 import { Prisma } from "../../../generated/prisma";
 import { notifyUser } from "../notification/notification.service";
+import { assertAttachmentsOwnedBy } from "../upload/upload.service";
 
 const includeContractDetails = {
   job: { select: { id: true, title: true, status: true, budgetType: true } },
@@ -29,6 +30,7 @@ type ContractWithDetails = Prisma.ContractGetPayload<{
 }>;
 
 // The one contract shape returned by every contract endpoint.
+// `attachments` is a column on the contract, so it is included automatically.
 const toContractResponse = (contract: ContractWithDetails) => {
   const { payments, ...rest } = contract;
   return {
@@ -211,6 +213,12 @@ export const submitWork = async (
   currentUser: JwtPayload,
   data: ISubmitWork,
 ) => {
+  // Checked before anything is written: every file must be one this freelancer uploaded
+  // through /uploads/sign (duplicates are collapsed).
+  const attachments = data.attachments?.length
+    ? assertAttachmentsOwnedBy(currentUser.userId, data.attachments)
+    : [];
+
   const updated = await transitionContract(
     contractId,
     currentUser,
@@ -219,6 +227,8 @@ export const submitWork = async (
     {
       submissionNote: data.submissionNote,
       submissionUrl: data.submissionUrl,
+      // A resubmission replaces the whole list.
+      attachments: attachments as Prisma.InputJsonValue,
       submittedAt: new Date(),
     },
   );
@@ -241,6 +251,7 @@ export const requestRevision = (contractId: string, currentUser: JwtPayload) =>
   transitionContract(contractId, currentUser, "ACTIVE", "clientId", {
     submissionNote: null,
     submissionUrl: null,
+    attachments: [],
     submittedAt: null,
   });
 

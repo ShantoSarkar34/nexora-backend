@@ -1,14 +1,27 @@
 import { z } from "zod";
+import { attachmentSchema } from "../upload/upload.validation";
+import { MAX_ATTACHMENTS } from "../upload/upload.constants";
 
 export const submitWorkSchema = z.object({
   body: z
     .object({
       submissionNote: z.string().max(2000).optional(),
       submissionUrl: z.string().url().optional(),
+      attachments: z
+        .array(attachmentSchema)
+        .max(MAX_ATTACHMENTS, `You can attach at most ${MAX_ATTACHMENTS} files`)
+        .optional(),
     })
-    .refine((data) => data.submissionNote || data.submissionUrl, {
-      message: "Provide at least a submission note or a submission URL",
-    }),
+    .refine(
+      (data) =>
+        data.submissionNote ||
+        data.submissionUrl ||
+        (data.attachments && data.attachments.length > 0),
+      {
+        message:
+          "Provide a submission note, a submission URL or at least one attachment",
+      },
+    ),
 });
 
 export const cancelContractSchema = z.object({
