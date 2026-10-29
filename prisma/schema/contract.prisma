@@ -18,6 +18,7 @@ model Contract {
 
   submissionNote String?   @db.Text
   submissionUrl  String?
+  // [{ url, name, size, mimeType }], at most 5, replaced on every submission.
   attachments    Json      @default("[]")
   submittedAt    DateTime?
   completedAt    DateTime?
